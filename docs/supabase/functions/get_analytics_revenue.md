@@ -47,9 +47,22 @@ SET search_path TO 'public'
 
 ## Logique
 
-1. Compte les receipts correspondant aux filtres (periode + etablissement + employe)
-2. Joint `receipt_lines` aux receipts filtres
-3. Agrege les montants par `payment_method` (card, cash, cashback)
+1. Lit le `role` et `attached_establishment_id` de l'appelant depuis `profiles` via `auth.uid()`
+2. **Anti-spoof** : si role ∈ `{establishment, employee}`, override `p_establishment_id := attached_establishment_id` (peu importe ce que le client a envoyé)
+3. `PERFORM public.assert_admin_or_establishment_for(p_establishment_id)` — bloque si l'appelant n'est ni admin ni rattaché à cet etab (voir Securite)
+4. Compte les receipts correspondant aux filtres (periode + etablissement + employe), avec exclusion `NOT p.is_test`
+5. Joint `receipt_lines` aux receipts filtres
+6. Agrege les montants par `payment_method` (card, cash, cashback)
+
+## Securite
+
+Depuis la migration **040 (Security Definer hardening, 18/05/2026)** :
+
+- Guard `assert_admin_or_establishment_for(p_establishment_id)` (voir [`assert_admin_or_establishment_for.md`](./assert_admin_or_establishment_for.md))
+- Pour un appelant `role IN ('establishment', 'employee')`, le `p_establishment_id` est **silencieusement écrasé** par `profiles.attached_establishment_id` avant le guard — impossible de lire les analytics d'un autre etab via le paramètre.
+- Seul un admin peut filtrer librement (n'importe quel `p_establishment_id` ou `NULL` pour la vue globale).
+- Bypass automatique pour `service_role` et superuser.
+- Exclusion `NOT p.is_test` appliquée systématiquement (receipts ET receipt_lines).
 
 ## Exemple
 

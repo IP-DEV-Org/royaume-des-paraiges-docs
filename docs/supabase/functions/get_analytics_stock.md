@@ -85,6 +85,16 @@ Quand `p_establishment_id` est specifie :
 - PdB Recompenses et Bonus Coupons : retournent 0 (pas de lien etablissement)
 - Spendings : filtres via `spendings.establishment_id`
 
+## Securite
+
+Depuis la migration **040 (Security Definer hardening, 18/05/2026)** :
+
+- Guard `assert_admin_or_establishment_for(p_establishment_id)` (voir [`assert_admin_or_establishment_for.md`](./assert_admin_or_establishment_for.md))
+- **Anti-spoof** : pour un appelant `role IN ('establishment', 'employee')`, `p_establishment_id` est silencieusement override par `profiles.attached_establishment_id` avant le guard. Seul un admin peut lire les données globales ou d'un autre etab.
+- Bypass automatique pour `service_role` et superuser.
+- Exclusion `NOT p.is_test` appliquée sur toutes les agrégations (gains et spendings, ouverture et fermeture).
+- Cette fonction ne prend pas de `p_employee_id` (le stock n'est pas attribuable à un employé).
+
 ## Exemple
 
 ```typescript

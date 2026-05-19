@@ -9,11 +9,11 @@ CREATE FUNCTION distribute_period_rewards_v2(
   p_period_type VARCHAR,
   p_period_identifier VARCHAR DEFAULT NULL,
   p_preview_only BOOLEAN DEFAULT false,
-  p_force BOOLEAN DEFAULT false,
-  p_admin_id UUID DEFAULT NULL
+  p_force BOOLEAN DEFAULT false
 ) RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path TO 'public'
 ```
 
 ## Parametres
@@ -21,10 +21,11 @@ SECURITY DEFINER
 | Parametre | Type | Requis | Default | Description |
 |-----------|------|--------|---------|-------------|
 | `p_period_type` | `VARCHAR` | Oui | - | Type de periode: weekly, monthly, yearly |
-| `p_period_identifier` | `VARCHAR` | Non | `NULL` | Identifiant de periode (ex: 2026-W06). Si NULL, utilise la periode courante |
+| `p_period_identifier` | `VARCHAR` | Non | `NULL` | Identifiant de periode (ex: 2026-W06). Si NULL, utilise la periode courante. **Bug connu** : ce paramètre est lu pour le scope des `period_reward_configs` et le `period_identifier` stocké, mais la sélection des utilisateurs lit la vue matérialisée `*_xp_leaderboard` telle quelle, qui ne contient que la période courante — la distribution / le preview d'une période passée renvoie donc le leaderboard du moment. À corriger dans une migration ultérieure. |
 | `p_preview_only` | `BOOLEAN` | Non | `false` | Si true, retourne un apercu sans distribuer |
 | `p_force` | `BOOLEAN` | Non | `false` | Si true, force la distribution meme si deja effectuee |
-| `p_admin_id` | `UUID` | Non | `NULL` | ID de l'admin qui declenche la distribution |
+
+> **Migration 040 (18/05/2026)** : le paramètre `p_admin_id` a été **retiré**. L'audit trail (`period_reward_configs.distributed_by`, `coupon_distribution_logs.distributed_by`) est désormais dérivé de `auth.uid()` côté serveur.
 
 ## Retour
 
@@ -66,17 +67,27 @@ SECURITY DEFINER
 
 ## Logique
 
-1. Valide le `period_type` (weekly/monthly/yearly)
-2. Determine le `period_identifier` si non fourni
-3. Verifie l'idempotence : rejette si deja distribue (sauf `p_force=true`)
-4. Charge les paliers : `period_reward_configs.custom_tiers` ou `reward_tiers` par defaut
-5. Parcourt le leaderboard (vue materialisee) et associe chaque utilisateur a un palier
-6. Pour chaque recompense :
+1. `PERFORM public.assert_admin()` — bloque les appelants non-admin (voir Securite)
+2. Valide le `period_type` (weekly/monthly/yearly)
+3. Determine le `period_identifier` si non fourni
+4. Verifie l'idempotence : rejette si deja distribue (sauf `p_force=true`)
+5. Charge les paliers : `period_reward_configs.custom_tiers` ou `reward_tiers` par defaut
+6. Parcourt le leaderboard (vue materialisee) et associe chaque utilisateur a un palier
+7. Pour chaque recompense :
    - Cree un coupon (amount ou percentage depuis le template)
    - Si montant fixe (bonus cashback) : `used=true`, appelle `credit_bonus_cashback()` avec `period_identifier`
    - Si badge configure : insere dans `user_badges`
-   - Log dans `coupon_distribution_logs`
-7. Met a jour `period_reward_configs` avec `status='distributed'`
+   - Log dans `coupon_distribution_logs` avec `distributed_by = auth.uid()`
+8. Met a jour `period_reward_configs` avec `status='distributed'`, `distributed_by = auth.uid()`
+
+## Securite
+
+Depuis la migration **040 (Security Definer hardening, 18/05/2026)** :
+
+- Première instruction : `PERFORM public.assert_admin()`. Voir [`assert_admin.md`](./assert_admin.md).
+- Bypass automatique pour `service_role` et `session_user IN (postgres, supabase_admin)` (cas des pg_cron jobs de distribution).
+- `GRANT EXECUTE TO authenticated`, `REVOKE EXECUTE FROM PUBLIC, anon`.
+- Audit trail (`distributed_by`) non falsifiable : dérivé de `auth.uid()` au lieu de l'ex-paramètre `p_admin_id`.
 
 ## Vues materialisees utilisees
 
@@ -99,16 +110,14 @@ SELECT distribute_period_rewards_v2(
 -- Distribution
 SELECT distribute_period_rewards_v2(
   'weekly',
-  '2026-W06',
-  p_admin_id := 'admin-uuid'::UUID
+  '2026-W06'
 );
 
 -- Force re-distribution
 SELECT distribute_period_rewards_v2(
   'weekly',
   '2026-W06',
-  p_force := true,
-  p_admin_id := 'admin-uuid'::UUID
+  p_force := true
 );
 ```
 

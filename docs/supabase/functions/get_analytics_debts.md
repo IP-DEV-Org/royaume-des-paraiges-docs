@@ -65,6 +65,15 @@ Quand `p_establishment_id` ou `p_employee_id` est specifie :
 - **PdB Bonus Coupons** : retourne 0 (pas de lien etablissement/employe)
 - **Coupons % actifs** : toujours global (pas filtre)
 
+## Securite
+
+Depuis la migration **040 (Security Definer hardening, 18/05/2026)** :
+
+- Guard `assert_admin_or_establishment_for(p_establishment_id)` (voir [`assert_admin_or_establishment_for.md`](./assert_admin_or_establishment_for.md))
+- **Anti-spoof** : pour un appelant `role IN ('establishment', 'employee')`, `p_establishment_id` est silencieusement override par `profiles.attached_establishment_id` avant le guard. Seul un admin peut lire les données globales (`p_establishment_id = NULL`) ou d'un autre etab.
+- Bypass automatique pour `service_role` et superuser.
+- Exclusion `NOT p.is_test` appliquée sur toutes les agrégations (organic, rewards, bonus_coupons, coupons %).
+
 ## Exemple
 
 ```typescript

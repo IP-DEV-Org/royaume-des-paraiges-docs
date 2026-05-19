@@ -22,7 +22,7 @@ SET search_path = public, pg_temp
 
 ## Retour
 
-Une ligne par utilisateur classé all-time : `(customer_id, total_xp)`. Filtré : `is_test = false` et seulement les utilisateurs avec un profil actif.
+Une ligne par utilisateur classé all-time : `(customer_id, total_xp)`. Filtré : `is_test = false` (cf. migration 040 du 18/05/2026 qui ajoute le `JOIN profiles` + `WHERE NOT p.is_test`) et `total_xp IS NOT NULL`.
 
 ## Autorisations
 

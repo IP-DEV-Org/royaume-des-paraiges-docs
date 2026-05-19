@@ -2,14 +2,19 @@
 
 Cette section documente toutes les fonctions PostgreSQL disponibles dans le schema `public`.
 
-## Liste des fonctions (58)
+## Liste des fonctions (62)
 
 > **Note** : les 14 fonctions du système **achievement badges** (migrations 022-026) sont documentées séparément dans [`achievement_badges.md`](./achievement_badges.md). Il s'agit de 6 `check_achievement_*` + 6 `progress_achievement_*` + 2 dispatchers (`award_achievements_for_user`, `award_achievements_for_all_for_badge`) + 1 cron (`award_achievements_for_all_cron`) + 3 RPCs front (`get_achievement_progress`, `get_unseen_badges`, `mark_badges_seen`).
 >
 > Pour les triggers de redondance des quêtes (migration 021), voir [`check_quest_redundancy.md`](./check_quest_redundancy.md).
+>
+> **Migration 040 (Security Definer hardening, 18/05/2026)** : 3 helpers `assert_*` ajoutés (`assert_admin`, `assert_admin_or_establishment_for`, `assert_self_or_staff`), nouvelle RPC publique `get_period_preview_public` pour le front (zéro UUID exposé), `p_admin_id` retiré des signatures de `create_manual_coupon`, `distribute_quest_reward`, `distribute_period_rewards_v2` (audit trail dérivé de `auth.uid()`). `credit_bonus_cashback` et `check_email_exists` sont passés en **REVOKE total** côté REST (uniquement chain interne / `service_role`). Voir [`assert_admin.md`](./assert_admin.md) et la migration `supabase/migrations/040_security_definer_hardening.sql`.
 
 | Fonction | Arguments | Retour | Volatilite | Security Definer |
 |----------|-----------|--------|------------|------------------|
+| `assert_admin` | - | `void` | VOLATILE | Oui |
+| `assert_admin_or_establishment_for` | p_establishment_id bigint | `void` | VOLATILE | Oui |
+| `assert_self_or_staff` | p_customer_id uuid | `void` | VOLATILE | Oui |
 | `award_user_badge` | p_customer_id uuid, p_badge_slug character varying, p_period_type character varying, p_period_identifier character varying, p_rank bigint | `json` | VOLATILE | Oui |
 | `calculate_gains` | p_amount_for_gains integer | `jsonb` | VOLATILE | Non |
 | `calculate_quest_progress` | p_customer_id uuid, p_quest_id bigint, p_period_identifier character varying DEFAULT NULL::character varying | `integer` | VOLATILE | Oui |
@@ -17,17 +22,16 @@ Cette section documente toutes les fonctions PostgreSQL disponibles dans le sche
 | `check_email_exists` | email_to_check text | `boolean` | VOLATILE | Oui |
 | `check_period_closed` | p_period_type character varying, p_period_identifier character varying | `boolean` | VOLATILE | Non |
 | `credit_bonus_cashback` | p_customer_id uuid, p_amount integer, p_coupon_id bigint DEFAULT NULL, p_source_type varchar DEFAULT 'bonus_cashback_manual', p_period_identifier varchar DEFAULT NULL | `bigint` | VOLATILE | Oui |
-| `credit_bonus_cashback` | p_customer_id uuid, p_amount integer, p_coupon_id bigint, p_source_type varchar DEFAULT 'bonus_cashback_manual' | `bigint` | VOLATILE | Oui |
 | `create_frequency_coupon` | p_customer_id uuid | `json` | VOLATILE | Oui |
 | `create_leaderboard_reward_coupon` | p_customer_id uuid, p_amount integer DEFAULT NULL::integer, p_percentage integer DEFAULT NULL::integer | `json` | VOLATILE | Oui |
-| `create_manual_coupon` | p_customer_id uuid, p_template_id bigint DEFAULT NULL::bigint, p_amount integer DEFAULT NULL::integer, p_percentage integer DEFAULT NULL::integer, p_expires_at timestamp with time zone DEFAULT NULL::timestamp with time zone, p_validity_days integer DEFAULT NULL::integer, p_notes text DEFAULT NULL::text, p_admin_id uuid DEFAULT NULL::uuid | `jsonb` | VOLATILE | Oui |
+| `create_manual_coupon` | p_customer_id uuid, p_template_id bigint DEFAULT NULL::bigint, p_amount integer DEFAULT NULL::integer, p_percentage integer DEFAULT NULL::integer, p_expires_at timestamp with time zone DEFAULT NULL::timestamp with time zone, p_validity_days integer DEFAULT NULL::integer, p_notes text DEFAULT NULL::text | `jsonb` | VOLATILE | Oui |
 | `create_receipt` | p_customer_id uuid, p_establishment_id bigint, p_payment_methods jsonb, p_coupon_ids bigint[] DEFAULT ARRAY[]::bigint[] | `jsonb` | VOLATILE | Oui |
 | `create_spending_from_cashback_payment` | - | `trigger` | VOLATILE | Non |
 | `create_weekly_coupon` | p_customer_id uuid | `json` | VOLATILE | Oui |
 | `distribute_all_quest_rewards` | p_admin_id uuid DEFAULT NULL::uuid | `json` | VOLATILE | Oui |
 | `distribute_leaderboard_rewards` | p_period_type character varying, p_force boolean DEFAULT false | `json` | VOLATILE | Oui |
-| `distribute_period_rewards_v2` | p_period_type character varying, p_period_identifier character varying DEFAULT NULL::character varying, p_force boolean DEFAULT false, p_preview_only boolean DEFAULT false, p_admin_id uuid DEFAULT NULL::uuid | `jsonb` | VOLATILE | Oui |
-| `distribute_quest_reward` | p_quest_progress_id bigint, p_admin_id uuid DEFAULT NULL::uuid | `json` | VOLATILE | Oui |
+| `distribute_period_rewards_v2` | p_period_type character varying, p_period_identifier character varying DEFAULT NULL::character varying, p_preview_only boolean DEFAULT false, p_force boolean DEFAULT false | `jsonb` | VOLATILE | Oui |
+| `distribute_quest_reward` | p_quest_progress_id bigint | `json` | VOLATILE | Oui |
 | `distribute_quest_rewards` | - | `trigger` | VOLATILE | Non |
 | `get_coupon_stats` | - | `jsonb` | VOLATILE | Oui |
 | `get_current_user_role` | - | `text` | VOLATILE | Oui |
@@ -35,6 +39,7 @@ Cette section documente toutes les fonctions PostgreSQL disponibles dans le sche
 | `get_period_bounds` | p_period_type character varying, p_period_identifier character varying | `TABLE(period_start timestamp with time zone, period_end timestamp with time zone)` | IMMUTABLE | Non |
 | `get_period_identifier` | p_period_type character varying, p_date timestamp with time zone DEFAULT now() | `character varying` | IMMUTABLE | Non |
 | `get_period_preview` | p_period_type character varying, p_period_identifier character varying DEFAULT NULL::character varying | `jsonb` | VOLATILE | Oui |
+| `get_period_preview_public` | p_period_type character varying, p_period_identifier character varying, p_top_n integer DEFAULT 20 | `TABLE(rank bigint, username text, avatar_url text, current_xp bigint, projected_reward_amount integer, projected_reward_type text, is_me boolean)` | VOLATILE | Oui |
 | `get_user_badges` | p_customer_id uuid | `TABLE(badge_id integer, slug character varying, name character varying, description text, icon character varying, rarity character varying, category character varying, earned_at timestamp with time zone, period_type character varying, period_identifier character varying, rank integer)` | VOLATILE | Non |
 | `get_user_cashback_balance` | p_customer_id uuid | `jsonb` | STABLE | Non |
 | `get_user_complete_stats` | p_customer_id uuid | `jsonb` | STABLE | Non |
@@ -83,7 +88,9 @@ Vérifie si une période de leaderboard a déjà été fermée
 
 Credite un bonus cashback directement au solde d'un utilisateur via la table `gains`. Voir [credit_bonus_cashback.md](./credit_bonus_cashback.md) pour la documentation complete.
 
-- **Arguments**: `p_customer_id uuid, p_amount integer, p_coupon_id bigint, p_source_type varchar, p_period_identifier varchar`
+Depuis la migration 040, **REVOKE EXECUTE FROM PUBLIC, anon, authenticated** : la fonction n'est plus appelable via REST. Reste accessible uniquement via la chaîne SECURITY DEFINER interne (depuis `create_manual_coupon`, `distribute_*`, trigger `distribute_quest_rewards`) ou via `service_role`.
+
+- **Arguments**: `p_customer_id uuid, p_amount integer, p_coupon_id bigint DEFAULT NULL, p_source_type varchar DEFAULT 'bonus_cashback_manual', p_period_identifier varchar DEFAULT NULL`
 - **Retour**: `bigint` (id du gain cree)
 
 
@@ -146,17 +153,17 @@ Distribue automatiquement les récompenses aux TOP 10 du leaderboard
 
 ### distribute_period_rewards_v2
 
-Distribue les récompenses leaderboard avec support des tiers configurables et mode preview
+Distribue les récompenses leaderboard avec support des tiers configurables et mode preview. Admin only depuis la migration 040 (`assert_admin()` + REVOKE anon).
 
-- **Arguments**: `p_period_type character varying, p_period_identifier character varying DEFAULT NULL::character varying, p_force boolean DEFAULT false, p_preview_only boolean DEFAULT false, p_admin_id uuid DEFAULT NULL::uuid`
+- **Arguments**: `p_period_type character varying, p_period_identifier character varying DEFAULT NULL::character varying, p_preview_only boolean DEFAULT false, p_force boolean DEFAULT false`
 - **Retour**: `jsonb`
 
 
 ### distribute_quest_reward
 
-Distribue les recompenses pour une quete completee
+Distribue les recompenses pour une quete completee. Admin only depuis la migration 040 (`assert_admin()` + REVOKE anon).
 
-- **Arguments**: `p_quest_progress_id bigint, p_admin_id uuid DEFAULT NULL::uuid`
+- **Arguments**: `p_quest_progress_id bigint`
 - **Retour**: `json`
 
 

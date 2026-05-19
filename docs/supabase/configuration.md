@@ -101,8 +101,8 @@ docs/docs/supabase/
 | `create_weekly_coupon` | p_customer_id | json | Cree un coupon 3,90€ pour 50€+ depenses/semaine |
 | `distribute_all_quest_rewards` | p_admin_id | json | Distribue les recompenses pour toutes les quetes completees |
 | `distribute_leaderboard_rewards` | p_period_type, p_force | json | Distribue les recompenses aux TOP 10 du leaderboard |
-| `distribute_period_rewards_v2` | p_period_type, p_period_identifier, p_force, p_preview_only, p_admin_id | jsonb | Distribue les recompenses leaderboard avec tiers configurables |
-| `distribute_quest_reward` | p_quest_progress_id, p_admin_id | json | Distribue les recompenses pour une quete completee |
+| `distribute_period_rewards_v2` | p_period_type, p_period_identifier, p_preview_only, p_force | jsonb | Distribue les recompenses leaderboard avec tiers configurables. Admin only (migration 040, audit trail via `auth.uid()`). |
+| `distribute_quest_reward` | p_quest_progress_id | json | Distribue les recompenses pour une quete completee. Admin only (migration 040, audit trail via `auth.uid()`). |
 | `distribute_quest_rewards` | - | trigger | Trigger: distribue recompenses quand quete completee |
 | `expire_quest_progress` | - | json | Expire les quest_progress dont la periode est terminee |
 | `get_coupon_stats` | - | jsonb | Retourne les statistiques globales des coupons |

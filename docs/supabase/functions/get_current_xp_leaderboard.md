@@ -58,3 +58,5 @@ Une ligne par utilisateur classé dans la période courante :
 - **Pas de `*_total_spent`** : la colonne est délibérément exclue du `RETURNS TABLE`. Elle reste dans les MV sous-jacentes pour des usages admin futurs mais ne traverse jamais PostgREST côté client.
 - **Bigint** : PostgREST sérialise les `bigint` en string. Les consommateurs doivent appliquer `Number()`.
 - **Pattern jumeau** : voir [`get_current_xp_rank`](./get_current_xp_rank.md) pour le rang d'un utilisateur précis sans charger tout le leaderboard.
+- **Filtre `NOT p.is_test`** (migration 040, 18/05/2026) : la RPC joint désormais `profiles` et filtre les comptes de test à la fois pour les lignes retournées **et** pour le `total_count`. Cohérent avec `get_period_leaderboard` et `get_public_xp_leaderboard`. Les MV sous-jacentes ne filtrent pas — le filtre est appliqué au niveau RPC pour éviter d'avoir à les régénérer.
+- **Colonnes** : `total_xp` (alias des colonnes `weekly_xp` / `monthly_xp` / `yearly_xp` selon la période), **pas** `xp`. `total_count` (compteur global d'utilisateurs classés), **pas** `total`.
