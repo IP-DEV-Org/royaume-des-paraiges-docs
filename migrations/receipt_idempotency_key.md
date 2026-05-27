@@ -263,7 +263,7 @@ VALUES
 
 3. **Appliquer la migration de schéma**
    - Connectez-vous au [Dashboard Supabase](https://app.supabase.com)
-   - Sélectionnez le projet `uflgfsoekkgegdgecubb`
+   - Sélectionnez le projet `kioysoveqemzjolfwpnu`
    - Allez dans **SQL Editor**
    - Exécutez les scripts de la section 1 (Changements de Schéma)
 

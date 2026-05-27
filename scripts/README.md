@@ -34,8 +34,8 @@ Definir les variables d'environnement suivantes :
 # Generer sur: https://app.supabase.com/account/tokens
 export SUPABASE_ACCESS_TOKEN="sbp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-# Optionnel - ID du projet (defaut: uflgfsoekkgegdgecubb)
-export SUPABASE_PROJECT_ID="uflgfsoekkgegdgecubb"
+# Optionnel - ID du projet (defaut: kioysoveqemzjolfwpnu)
+export SUPABASE_PROJECT_ID="kioysoveqemzjolfwpnu"
 ```
 
 ### Utilisation

@@ -17,81 +17,94 @@ Cette section documente l'utilisation de Supabase comme backend pour le Royaume 
 
 ## Resume
 
-- **36 tables** public avec RLS active (table `notes` supprimée 18/05/2026, table `user_legal_consents` restaurée 18/05/2026)
-- **63 fonctions** PostgreSQL — incluant 5 nouvelles RPCs sécurisées (mai 2026) qui remplacent les accès directs aux MV :
-  - `get_current_xp_leaderboard`, `get_current_xp_rank` (leaderboards périodiques publics)
-  - `get_public_xp_leaderboard`, `get_public_user_xp` (XP all-time)
-  - `get_unspent_cashback_total` (dette PdB admin-only)
+- **42 tables** public avec RLS active (table `notes` supprimée 18/05/2026, table `user_legal_consents` restaurée 18/05/2026)
+- **96 fonctions** PostgreSQL — incluant RPCs sécurisées (mai 2026) remplaçant les accès directs aux MV, fonctions RGPD (mai 2026), et gestion photo d'identité avec cooldown
 - **4 vues materialisees** (`weekly_xp_leaderboard`, `monthly_xp_leaderboard`, `yearly_xp_leaderboard`, `user_stats`) — **fermées à l'API PostgREST** depuis 18/05/2026 ; lisibles uniquement via les RPC wrappers.
 - **6 vues** SQL (cashpad_health_*, public_profiles, avg_ticket_12m, reward_distribution_stats) — passées en `security_invoker=true` 18/05/2026.
-- **4 triggers** automatiques (voir `triggers/README.md`)
+- **19 triggers** (7 métier + 2 validation + 10 auto-timestamp) — voir `triggers/README.md`
 - **4 jobs pg_cron** pour distributions automatiques (dont `award_achievements_cron` quotidien 02:00 UTC)
 - **2 buckets storage** (avatars, content-assets) — policies durcies 18/05/2026 (plus de listing public, plus d'écrasement d'avatars d'autrui)
-- **1 edge function** (send-contact-email)
+- **3 edge functions** (cashpad-webhook, cashpad-process-queue, cashpad-reconcile-daily) — voir `edge-functions/README.md`
 - **4 enums** personnalises (consumption_type, payment_method, quest_type, user_role)
 
 ## Tables par Categorie
 
 ### Utilisateurs & Auth
-- `profiles` - Profils utilisateurs (35 lignes)
-- `user_badges` - Badges obtenus (2 lignes)
+- `profiles` - Profils utilisateurs
+- `user_badges` - Badges obtenus
+- `gdpr_requests` - Demandes RGPD (export / suppression)
 
 ### Coupons & Recompenses
-- `coupons` - Coupons utilisateurs (2 lignes)
-- `coupon_templates` - Modeles de coupons (23 lignes)
+- `coupons` - Coupons utilisateurs
+- `coupon_templates` - Modèles de coupons
 - `coupon_distribution_logs` - Historique distributions
-- `reward_tiers` - Paliers de recompenses (6 lignes)
+- `reward_tiers` - Paliers de récompenses
 
 ### Quetes
-- `quests` - Definition des quetes (4 lignes)
-- `quest_progress` - Progression utilisateurs (40 lignes)
-- `quest_completion_logs` - Historique completions (7 lignes)
-- `quest_periods` - Liaison quetes-periodes (4 lignes)
-- `available_periods` - Periodes disponibles (130 lignes)
+- `quests` - Définition des quêtes
+- `quest_progress` - Progression utilisateurs
+- `quest_completion_logs` - Historique complétions
+- `quest_periods` - Liaison quêtes-périodes
+- `available_periods` - Périodes disponibles
 
 ### Leaderboard
-- `leaderboard_reward_distributions` - Historique recompenses
-- `period_closures` - Periodes fermees (1 ligne)
-- `period_reward_configs` - Config personnalisee (3 lignes)
+- `leaderboard_reward_distributions` - Historique récompenses
+- `period_closures` - Périodes fermées
+- `period_reward_configs` - Config personnalisée
+- `season_closure_log` - Journal des étapes de clôture de saison
+- `season_snapshots` - Photographie immuable rang/XP/coefficient par saison
 
 ### Transactions
-- `receipts` - Tickets de caisse (64 lignes)
-- `receipt_lines` - Lignes de paiement (65 lignes)
+- `receipts` - Tickets de caisse
+- `receipt_lines` - Lignes de paiement
 - `receipt_consumption_items` - Types de consommation (optionnel)
-- `gains` - Gains XP/cashback (72 lignes)
-- `spendings` - Depenses cashback (1 ligne)
+- `gains` - Gains XP/cashback
+- `spendings` - Dépenses cashback
 
 ### Contenu
-- `beers` - Catalogue bieres (196 lignes)
-- `breweries` - Brasseries (66 lignes)
-- `beer_styles` - Styles de bieres (47 lignes)
-- `establishments` - Etablissements (7 lignes)
-- `news` - Actualites (2 lignes)
-- `level_thresholds` - Seuils de niveaux (30 lignes)
+- `beers` - Catalogue bières
+- `breweries` - Brasseries
+- `beer_styles` - Styles de bières
+- `establishments` - Établissements
+- `establishment_groups` - Groupes d'établissements (caisse Cashpad commune)
+- `establishment_consumption_types` - Types de consommation par établissement
+- `news` - Actualités
+- `level_thresholds` - Seuils de niveaux
 
 ### Social
-- `likes` - Likes (29 lignes)
-- `comments` - Commentaires (2 lignes)
+- `likes` - Likes
+- `comments` - Commentaires
 - ~~`notes`~~ — **Supprimée 18/05/2026** (orpheline, 0 ligne, jamais utilisée)
 
 ### Autres
-- `badge_types` - Types de badges (20 lignes : 9 classement + 6 saison + 5 succès)
-- `constants` - Constantes systeme (2 lignes)
+- `badge_types` - Types de badges (9 classement + 6 saison + 5+ succès)
+- `constants` - Constantes système
+
+### Réconciliation Cashpad
+- `cashpad_receipts_snapshot` - Cache des tickets Cashpad (archives API)
+- `cashpad_reconciliations` - Liens de réconciliation receipt Royaume ↔ ticket Cashpad
+- `cashpad_matching_params` - Paramètres adaptatifs de matching par établissement
+- `cashpad_employee_mappings` - Mapping profils Royaume ↔ serveurs Cashpad
+- `cashpad_webhook_queue` - Queue des événements webhook Cashpad
 
 ### Configuration
-- `legal_pages` - Pages legales (3 lignes, colonne `version` ajoutée 15/05/2026 — bump force re-acceptation)
-- `user_legal_consents` - Journal d'acceptation versionnée des documents légaux (immuable, RLS user-self) — restaurée 18/05/2026
-- `admin_settings` - Parametrage admin key-value JSONB (2 lignes)
+- `legal_pages` - Pages légales (colonne `version` — bump force re-acceptation)
+- `user_legal_consents` - Journal d'acceptation versionnée des documents légaux (immuable, RLS user-self)
+- `admin_settings` - Paramétrage admin key-value JSONB
 
 ### Tables de liaison (M2M)
-- `beers_establishments` - Bieres-Etablissements (43 lignes)
-- `beers_beer_styles` - Bieres-Styles (285 lignes)
-- `news_establishments` - News-Etablissements (3 lignes)
-- `quests_establishments` - Scoping quetes par etablissement (0 ligne, quetes globales par defaut)
+- `beers_establishments` - Bières-Établissements
+- `beers_beer_styles` - Bières-Styles
+- `news_establishments` - News-Établissements
+- `quests_establishments` - Scoping quêtes par établissement (aucune entrée = quête globale)
 
 ## Migrations
 
-Les 72 migrations SQL sont appliquees automatiquement. Les dernieres concernent le systeme de bonus cashback (fevrier 2026), les pages legales et les periodes dans les gains.
+Les migrations SQL sont appliquées automatiquement. Voir `supabase_migrations.schema_migrations` pour la liste complète. Dernières migrations notables :
+- **Mai 2026** : identity_photo_feature, GDPR (anonymisation + rétention), establishment_consumption_types, identity_photo_cooldown, level_thresholds_admin_rls
+- **18 mai 2026** : Hardening sécurité (16 migrations), establishment_groups
+- **Mai 2026** : Réconciliation Cashpad (migrations 032-036)
+- **Avril 2026** : Badges succès (022-027, 030-031), cashback_earned quest type (028-029), prévention quêtes redondantes (020-021)
 
 ## Ressources
 
@@ -136,6 +149,15 @@ Audit Supabase advisors complet : **180 warnings → 38 warnings, 0 ERROR**. Tou
 - `royaume-paraiges-admin/src/lib/services/analyticsService.ts` : `from('user_stats')` + agg client-side → `rpc('get_unspent_cashback_total')`
 - `royaume-paraiges-admin/src/app/(dashboard)/quests/_form/QuestForm.tsx` : Zod `superRefine` pour valider qu'au moins une récompense est configurée (fix 400 BDD `quests.has_reward`)
 - Scripts `supabase:types` corrigés (front + scanner pointaient encore vers l'ancien `uflgfsoekkgegdgecubb`)
+
+### Migrations mai 2026 (post-hardening)
+
+- **`identity_photo_feature`** (26/05) — Colonnes `identity_photo_url` et `identity_photo_updated_at` sur `profiles`, bucket storage pour photos d'identité
+- **`gdpr_add_identity_photo_cleanup`** (26/05) — Nettoyage photo d'identité dans `gdpr_anonymize_user`
+- **`legal_bump_v1_2_identity_photo`** (26/05) — Bump version CGU v1.2 suite ajout photo d'identité
+- **`level_thresholds_admin_rls`** (26/05) — Policies admin CRUD sur `level_thresholds`
+- **`create_establishment_consumption_types`** (26/05) — Table `establishment_consumption_types` avec policies RLS
+- **`identity_photo_cooldown`** (27/05) — Trigger `enforce_identity_photo_cooldown` (30 jours) + RPC `admin_reset_identity_photo_cooldown`
 
 ### Historique antérieur
 

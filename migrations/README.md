@@ -12,7 +12,7 @@ Ce dossier contient les scripts de migration SQL pour la base de donnees Supabas
 ## Comment executer une migration
 
 1. Connectez-vous au [Dashboard Supabase](https://app.supabase.com)
-2. Selectionnez le projet `uflgfsoekkgegdgecubb`
+2. Selectionnez le projet `kioysoveqemzjolfwpnu`
 3. Allez dans **SQL Editor**
 4. Copiez-collez le contenu du fichier de migration
 5. Executez le script
