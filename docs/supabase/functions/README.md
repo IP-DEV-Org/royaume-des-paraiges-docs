@@ -70,7 +70,7 @@ Attribue un badge à un utilisateur pour une période donnée
 
 ### calculate_quest_progress
 
-Calcule la progression actuelle d'un utilisateur pour une quete donnee. Supporte les types `xp_earned`, `amount_spent` (déprécié), `cashback_earned`, `establishments_visited`, `orders_count`, `quest_completed` et `consumption_count`. Pour `cashback_earned` (migration 029), progression = SUM(`gains.cashback_money`) sur la période — coefficient client et bonus coupons inclus. Pour `quest_completed`, compte le nombre de sous-périodes distinctes (weekly pour monthly, monthly pour yearly) avec au moins 1 quête complétée dans `quest_completion_logs`.
+Calcule la progression actuelle d'un utilisateur pour une quete donnee. Supporte les types `xp_earned`, `amount_spent`, `cashback_earned`, `establishments_visited`, `orders_count`, `quest_completed` et `consumption_count`. Pour `cashback_earned` (migration 029), progression = SUM(`gains.cashback_money`) sur la période — coefficient client et bonus coupons inclus. Pour `quest_completed`, compte le nombre de sous-périodes distinctes (weekly pour monthly, monthly pour yearly) avec au moins 1 quête complétée dans `quest_completion_logs`.
 
 - **Arguments**: `p_customer_id uuid, p_quest_id bigint, p_period_identifier character varying DEFAULT NULL::character varying`
 - **Retour**: `integer`

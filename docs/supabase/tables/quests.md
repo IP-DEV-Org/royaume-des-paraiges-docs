@@ -32,7 +32,7 @@ Le mot **quête** reste acceptable dans la doc **uniquement** si on précise « 
 | `slug` | `varchar(100)` | Non | - | Identifiant unique (UNIQUE) |
 | `quest_type` | enum `quest_type` | Non | - | 7 valeurs (cf. ci-dessous) |
 | `consumption_type` | enum `consumption_type` | Oui | - | **Obligatoire ssi `quest_type = 'consumption_count'`** (CHECK constraint). Sinon NULL. |
-| `target_value` | `integer` | Non | - | Objectif à atteindre. Pour `amount_spent` (déprécié), en **centimes** (50 € = 5000). Pour `cashback_earned`, directement en **PdB** (50 PdB = 50). |
+| `target_value` | `integer` | Non | - | Objectif à atteindre. Pour `amount_spent`, en **centimes** (50 € = 5000) — saisie côté admin en € puis ×100. Pour `cashback_earned`, directement en **PdB** (50 PdB = 50). |
 | `period_type` | `varchar(20)` | Non | - | `weekly` / `monthly` / `yearly` |
 | `coupon_template_id` | `bigint` | Oui | - | FK → `coupon_templates`. Récompense en bonus PdB direct ou coupon % à la complétion. |
 | `badge_type_id` | `bigint` | Oui | - | FK → `badge_types`. Badge attribué à la complétion. |
@@ -49,7 +49,7 @@ Le mot **quête** reste acceptable dans la doc **uniquement** si on précise « 
 | Valeur | Description |
 |---|---|
 | `xp_earned` | Gagner X XP sur la période |
-| `amount_spent` | **Déprécié depuis avril 2026 (migrations 028/029)** — Dépenser X centimes sur la période. Conservé dans l'enum pour compatibilité/usage futur côté admin. Retiré de l'UI de création. |
+| `amount_spent` | Dépenser X centimes sur la période. Saisie en € côté admin (×100 au submit). Ajouté à la création, mais à éviter en quête client si la règle « zéro euro côté client » s'applique — utiliser `cashback_earned` à la place. |
 | `cashback_earned` | Collecter X Paraiges de Bronze (1 PdB = 1 centime) sur la période. Progression = SUM(`gains.cashback_money`), coefficient client + bonus coupons inclus. Ajouté en migration 028. |
 | `establishments_visited` | Visiter X établissements distincts sur la période |
 | `orders_count` | Passer X commandes sur la période |

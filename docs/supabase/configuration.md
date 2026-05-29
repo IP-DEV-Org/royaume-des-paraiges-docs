@@ -4,9 +4,9 @@
 
 | Propriete | Valeur |
 |-----------|--------|
-| **Project ID** | `uflgfsoekkgegdgecubb` |
+| **Project ID** | `kioysoveqemzjolfwpnu` |
 | **Region** | us-east-2 |
-| **URL API** | `https://uflgfsoekkgegdgecubb.supabase.co` |
+| **URL API** | `https://kioysoveqemzjolfwpnu.supabase.co` |
 | **PostgreSQL** | 17.6.1.003 |
 
 ## Vue d'ensemble
@@ -80,7 +80,7 @@ docs/docs/supabase/
 | Enum | Valeurs |
 |------|---------|
 | `payment_method` | card, cash, cashback, coupon |
-| `quest_type` | xp_earned, amount_spent (déprécié), cashback_earned, establishments_visited, orders_count, quest_completed, consumption_count |
+| `quest_type` | xp_earned, amount_spent, cashback_earned, establishments_visited, orders_count, quest_completed, consumption_count |
 | `user_role` | client, employee, establishment, admin |
 
 ### Fonctions PostgreSQL (39)

@@ -1,6 +1,6 @@
 # Function: calculate_quest_progress
 
-Calcule la progression actuelle d'un utilisateur pour une quête donnée et une période donnée. Supporte tous les `quest_type` de l'enum (`xp_earned`, `cashback_earned`, `amount_spent` déprécié, `establishments_visited`, `orders_count`, `quest_completed`, `consumption_count`).
+Calcule la progression actuelle d'un utilisateur pour une quête donnée et une période donnée. Supporte tous les `quest_type` de l'enum (`xp_earned`, `cashback_earned`, `amount_spent`, `establishments_visited`, `orders_count`, `quest_completed`, `consumption_count`).
 
 Lisible par l'utilisateur sur sa propre progression ou par n'importe quel staff (`admin` / `employee` / `establishment`) depuis la migration **040 (Security Definer hardening, 18/05/2026)**.
 
@@ -33,7 +33,7 @@ SET search_path = public
 |--------------|-------|
 | `xp_earned` | XP cumulés sur la période (`SUM(gains.xp)` joint via `receipts`) |
 | `cashback_earned` | Centimes / PdB cumulés (`SUM(gains.cashback_money)` joint via `receipts`) |
-| `amount_spent` (déprécié) | Centimes dépensés (`SUM(receipts.amount)`) |
+| `amount_spent` | Centimes dépensés (`SUM(receipts.amount)`) |
 | `establishments_visited` | Nombre d'établissements distincts (déduplique par `group_id` si défini, sinon `id`) |
 | `orders_count` | Nombre de receipts (`COUNT(*)`) |
 | `quest_completed` | Nombre de sous-périodes distinctes avec au moins 1 quête complétée (`COUNT(DISTINCT period_identifier)` dans `quest_completion_logs`). Sous-période : weekly pour monthly, monthly pour yearly. Retourne 0 si `period_type = weekly` (pas de sous-période). |

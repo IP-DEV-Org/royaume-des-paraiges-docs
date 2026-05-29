@@ -17,7 +17,7 @@ Le projet utilise **2 buckets** Supabase Storage pour stocker les fichiers.
 | **Types MIME autorisés** | Tous |
 | **Créé le** | 2025-10-15 |
 
-**URL publique** : `https://uflgfsoekkgegdgecubb.supabase.co/storage/v1/object/public/avatars/`
+**URL publique** : `https://kioysoveqemzjolfwpnu.supabase.co/storage/v1/object/public/avatars/`
 
 ### content-assets
 
@@ -31,7 +31,7 @@ Le projet utilise **2 buckets** Supabase Storage pour stocker les fichiers.
 | **Créé le** | 2026-01-22 |
 | **Origine** | Tables de contenu |
 
-**URL publique** : `https://uflgfsoekkgegdgecubb.supabase.co/storage/v1/object/public/content-assets/`
+**URL publique** : `https://kioysoveqemzjolfwpnu.supabase.co/storage/v1/object/public/content-assets/`
 
 **Structure des dossiers** :
 
@@ -180,7 +180,7 @@ async function deleteAvatar(userId: string) {
 
 ```typescript
 // Construire l'URL
-const avatarUrl = `https://uflgfsoekkgegdgecubb.supabase.co/storage/v1/object/public/avatars/${userId}.jpg`;
+const avatarUrl = `https://kioysoveqemzjolfwpnu.supabase.co/storage/v1/object/public/avatars/${userId}.jpg`;
 
 // Ou via Supabase
 const { data } = supabase.storage

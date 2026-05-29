@@ -191,7 +191,7 @@ Types de quêtes disponibles.
 ```sql
 CREATE TYPE quest_type AS ENUM (
   'xp_earned',              -- Gagner X XP
-  'amount_spent',           -- Dépenser X centimes (déprécié depuis migrations 028/029)
+  'amount_spent',           -- Dépenser X centimes (saisie en € côté admin, ×100 au submit)
   'establishments_visited', -- Visiter X établissements
   'orders_count',           -- Passer X commandes
   'quest_completed',        -- Compléter N sous-périodes de quêtes
