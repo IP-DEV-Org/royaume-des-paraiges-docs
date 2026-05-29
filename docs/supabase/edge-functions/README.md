@@ -36,7 +36,7 @@ Traite les éléments en attente dans `cashpad_webhook_queue`. Pour chaque évé
 Réconciliation quotidienne batch entre les receipts Royaume et les tickets Cashpad. Peut être déclenchée par cron (03:00 UTC) ou manuellement via l'UI admin.
 
 - **Entrypoint**: `supabase/functions/cashpad-reconcile-daily/index.ts`
-- **Auth**: service_role_key (cron) OU JWT admin (UI)
+- **Auth**: `verify_jwt=false` (gateway) + validation interne = **secret key Supabase** `sb_secret_…` (cron, fallback `SUPABASE_SERVICE_ROLE_KEY`) OU JWT admin (UI). Le cron envoie la clé depuis Vault (`reconcile_service_key`). `cashpad-process-queue` suit le même modèle (cron-only, sans branche JWT). ⚠️ À chaque **rotation** de la clé Supabase, mettre à jour le secret Vault sinon les crons retombent en 401.
 - **Tables cibles**: `cashpad_receipts_snapshot`, `cashpad_reconciliations`, `cashpad_matching_params`
 
 #### Pipeline
