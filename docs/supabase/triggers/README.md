@@ -2,11 +2,12 @@
 
 ## Liste des triggers
 
-### Triggers métier (7)
+### Triggers métier (8)
 
 | Trigger | Table | Événement | Fonction | Description |
 |---------|-------|-----------|----------|-------------|
 | `trigger_create_spending_on_cashback` | `receipt_lines` | AFTER INSERT | `create_spending_from_cashback_payment` | Crée une ligne spending pour chaque paiement cashback |
+| `trg_enforce_non_negative_cashback` | `gains` | AFTER INSERT/UPDATE/DELETE | `enforce_non_negative_cashback` | Bloque toute mutation de `gains` rendant le solde PdB négatif (errcode `P0423`) |
 | `trg_quests_enforce_redundancy` | `quests` | AFTER INSERT/UPDATE | `enforce_quest_redundancy_on_quests` | Bloque les quêtes actives redondantes |
 | `trg_qe_enforce_redundancy_insert` | `quests_establishments` | AFTER INSERT | `enforce_quest_redundancy_on_qe_insert` | Vérifie redondance à l'ajout de scope |
 | `trg_qe_enforce_redundancy_delete` | `quests_establishments` | AFTER DELETE | `enforce_quest_redundancy_on_qe_delete` | Vérifie redondance à la suppression de scope |
@@ -89,6 +90,18 @@ Trois triggers qui s'appuient sur la fonction core `check_quest_redundancy(p_que
 - Modifier la signature d'une quête inactive est toujours autorisé.
 - Ajouter/retirer un lien `quests_establishments` d'une quête **inactive** est toujours autorisé.
 - Retirer le **dernier** lien d'une quête locale active la fait basculer en globale — le trigger `AFTER DELETE` détecte ce cas et bloque si conflit.
+
+### trg_enforce_non_negative_cashback (migration 043)
+
+- **Table**: `gains`
+- **Fonction**: `enforce_non_negative_cashback` (`SECURITY DEFINER`)
+- **Événement**: `AFTER INSERT OR UPDATE OF cashback_money, customer_id OR DELETE`
+
+Garde-fou qui empêche le solde de **Paraiges de Bronze (PdB)** d'un client de devenir négatif. À chaque mutation de `gains`, recalcule `SUM(gains.cashback_money) − SUM(receipt_lines.amount WHERE payment_method='cashback')` pour le client concerné et lève `RAISE EXCEPTION ... USING ERRCODE = 'P0423'` (message préfixé `CASHBACK_BALANCE_NEGATIVE:`) si le résultat est `< 0`.
+
+**Portée volontaire** : couvre uniquement les mutations de `gains` (annulation = gain négatif `rollback_beta_correction`, `DELETE`, `UPDATE` réducteur). Ne touche pas le chemin de dépense (`receipt_lines` / `create_receipt`), qui conserve sa propre logique. Comme `create_receipt` insère un gain *positif*, le trigger ne le bloque jamais à tort.
+
+Détail complet : [`functions/enforce_non_negative_cashback.md`](../functions/enforce_non_negative_cashback.md).
 
 ## Triggers supprimés
 

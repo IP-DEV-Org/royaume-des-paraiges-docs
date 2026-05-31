@@ -18,10 +18,10 @@ Cette section documente l'utilisation de Supabase comme backend pour le Royaume 
 ## Resume
 
 - **42 tables** public avec RLS active (table `notes` supprimée 18/05/2026, table `user_legal_consents` restaurée 18/05/2026)
-- **96 fonctions** PostgreSQL — incluant RPCs sécurisées (mai 2026) remplaçant les accès directs aux MV, fonctions RGPD (mai 2026), et gestion photo d'identité avec cooldown
+- **97 fonctions** PostgreSQL — incluant RPCs sécurisées (mai 2026) remplaçant les accès directs aux MV, fonctions RGPD (mai 2026), gestion photo d'identité avec cooldown, et garde-fou solde PdB non négatif (`enforce_non_negative_cashback`, migration 043)
 - **4 vues materialisees** (`weekly_xp_leaderboard`, `monthly_xp_leaderboard`, `yearly_xp_leaderboard`, `user_stats`) — **fermées à l'API PostgREST** depuis 18/05/2026 ; lisibles uniquement via les RPC wrappers.
 - **6 vues** SQL (cashpad_health_*, public_profiles, avg_ticket_12m, reward_distribution_stats) — passées en `security_invoker=true` 18/05/2026.
-- **19 triggers** (7 métier + 2 validation + 10 auto-timestamp) — voir `triggers/README.md`
+- **20 triggers** (8 métier + 2 validation + 10 auto-timestamp) — voir `triggers/README.md`
 - **4 jobs pg_cron** pour distributions automatiques (dont `award_achievements_cron` quotidien 02:00 UTC)
 - **2 buckets storage** (avatars, content-assets) — policies durcies 18/05/2026 (plus de listing public, plus d'écrasement d'avatars d'autrui)
 - **3 edge functions** (cashpad-webhook, cashpad-process-queue, cashpad-reconcile-daily) — voir `edge-functions/README.md`
@@ -158,6 +158,7 @@ Audit Supabase advisors complet : **180 warnings → 38 warnings, 0 ERROR**. Tou
 - **`level_thresholds_admin_rls`** (26/05) — Policies admin CRUD sur `level_thresholds`
 - **`create_establishment_consumption_types`** (26/05) — Table `establishment_consumption_types` avec policies RLS
 - **`identity_photo_cooldown`** (27/05) — Trigger `enforce_identity_photo_cooldown` (30 jours) + RPC `admin_reset_identity_photo_cooldown`
+- **`043_guard_negative_cashback_balance`** (31/05) — Trigger `trg_enforce_non_negative_cashback` sur `gains` + fonction `enforce_non_negative_cashback` : empêche tout solde de Paraiges de Bronze négatif (errcode `P0423`). Voir `functions/enforce_non_negative_cashback.md`
 
 ### Historique antérieur
 
