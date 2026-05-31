@@ -5,7 +5,7 @@
 | Propriete | Valeur |
 |-----------|--------|
 | **Project ID** | `kioysoveqemzjolfwpnu` |
-| **Region** | us-east-2 |
+| **Region** | eu-west-3 (Paris) |
 | **URL API** | `https://kioysoveqemzjolfwpnu.supabase.co` |
 | **PostgreSQL** | 17.6.1.003 |
 

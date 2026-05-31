@@ -9,7 +9,7 @@ Cette section documente l'utilisation de Supabase comme backend pour le Royaume 
 **Region**: eu-west-3 (Paris)
 **PostgreSQL**: 17.6.1.003
 
-> **Note historique** : le projet Royaume `kioysoveqemzjolfwpnu` (us-east-2) reste référencé dans les anciens dumps et scripts. Toute nouvelle requête doit cibler IPDEV.
+> **Note historique** : le projet Royaume `uflgfsoekkgegdgecubb` (us-east-2) reste référencé dans les anciens dumps et scripts. Toute nouvelle requête doit cibler IPDEV.
 
 ## Table des matieres
 
@@ -148,7 +148,7 @@ Audit Supabase advisors complet : **180 warnings → 38 warnings, 0 ERROR**. Tou
 - `royaume-paraiges-scanner/src/lib/services/clientService.ts` : `from('user_stats').single()` → `rpc('get_user_stats')` avec mapping array→object
 - `royaume-paraiges-admin/src/lib/services/analyticsService.ts` : `from('user_stats')` + agg client-side → `rpc('get_unspent_cashback_total')`
 - `royaume-paraiges-admin/src/app/(dashboard)/quests/_form/QuestForm.tsx` : Zod `superRefine` pour valider qu'au moins une récompense est configurée (fix 400 BDD `quests.has_reward`)
-- Scripts `supabase:types` corrigés (front + scanner pointaient encore vers l'ancien `kioysoveqemzjolfwpnu`)
+- Scripts `supabase:types` corrigés (front + scanner pointaient encore vers l'ancien `uflgfsoekkgegdgecubb`)
 
 ### Migrations mai 2026 (post-hardening)
 
