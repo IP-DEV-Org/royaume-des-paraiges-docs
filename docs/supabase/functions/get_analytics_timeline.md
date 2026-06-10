@@ -7,6 +7,8 @@ RPC introduites par la migration **046 (01/06/2026)** pour la refonte de la page
 > Migration **054 (04/06/2026)** : refonte des métriques pour la **réconciliation Cashpad ↔ Royaume** en deux axes (Euros Royaume + Paiements PdB), chacun comparé Cashpad vs Royaume, plus la génération de PdB (organique + quêtes). Retire `pdb_payments_cents` / `transactions_amount_cents` / `cashpad_euro_royaume_cents` au profit de 6 colonnes. `DROP`/`CREATE` : `EXECUTE` ré-octroyé à `authenticated`/`service_role`, révoqué `anon`/`PUBLIC`.
 >
 > Migration **055 (04/06/2026)** : ajout de `euro_cashpad_other_cents` (paiements Cashpad hors Royaume) → ligne « Euros Cashpad » en tête de tableau. `DROP`/`CREATE`, droits réappliqués à l'identique.
+>
+> Migration **056 (04/06/2026)** : **comparaison Cashpad rendue optionnelle (perf)**. Nouveau 4ᵉ paramètre `p_include_cashpad boolean DEFAULT false`. L'agrégation des colonnes « selon Cashpad » (`euro_cashpad_*`, `pdb_cashpad_cents`) parcourait tout `cashpad_receipts_snapshot` (~454 MB, JSONB) à chaque appel (~2,4 s). Désormais : **off** (défaut) → CTE `cashpad_pm` court-circuitée (snapshot **jamais lu**), ces 3 colonnes renvoient `NULL` → ~50 ms ; **on** → agrégation réécrite en `CROSS JOIN LATERAL` par clôture (exploite `idx_crs_establishment_closed`, ~0,25 s à chaud). `DROP` de la 3-arg + `CREATE` de la 4-arg, droits réappliqués à l'identique.
 
 ## get_analytics_timeline
 
@@ -16,7 +18,8 @@ RPC introduites par la migration **046 (01/06/2026)** pour la refonte de la page
 CREATE FUNCTION public.get_analytics_timeline(
   p_start_date date,
   p_end_date   date,
-  p_establishment_ids int[] DEFAULT NULL
+  p_establishment_ids int[] DEFAULT NULL,
+  p_include_cashpad boolean DEFAULT false  -- off → colonnes Cashpad NULL (rapide)
 ) RETURNS TABLE (
   establishment_id     integer,
   establishment_title  text,
