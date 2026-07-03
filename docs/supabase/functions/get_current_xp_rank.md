@@ -42,3 +42,4 @@ SET search_path = public, pg_temp
 - **Bigint** : `rank` et `total_xp` sont des `bigint` ; appliquer `Number()` côté client.
 - **Pas de `*_total_spent`** : exclu volontairement (règle produit « zéro euro côté client »).
 - **Migration introductrice** : `security_revoke_xp_leaderboard_matviews` (18/05/2026).
+- **XP = tous les gains** (migration `058_leaderboard_include_all_gains`, 03/07/2026) : `total_xp` inclut désormais les gains sans ticket (quêtes, bonus, actions utilisateur) — voir [`get_current_xp_leaderboard`](./get_current_xp_leaderboard.md).
