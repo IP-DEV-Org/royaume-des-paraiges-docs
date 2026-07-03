@@ -34,6 +34,7 @@ Profils utilisateurs du Royaume des Paraiges. Synchronisé depuis `auth.users` v
 | `terms_accepted_at` | `timestamp with time zone` | Oui | - | Date d'acceptation des CGU |
 | `identity_photo_url` | `text` | Oui | - | URL de la photo d'identité (bucket avatars) |
 | `identity_photo_updated_at` | `timestamp with time zone` | Oui | - | Date du dernier upload de photo d'identité (cooldown 30 jours) |
+| `is_super_admin` | `boolean` | Non | false | Super admin du dashboard : peut gérer les accès par fonctionnalité des autres admins (migration 057). Immuable hors `service_role`/`postgres` (trigger anti-escalade). |
 
 ## Cles primaires
 
