@@ -113,7 +113,8 @@ SET search_path TO 'public'
 
 ## Étapes d'Exécution
 
-1. **Vérification des permissions** - Seuls `employee`, `establishment`, `admin` peuvent créer
+1. **Vérification des permissions** - Seuls `employee`, `establishment`, `admin` peuvent créer (un `client` est rejeté : « Permissions insuffisantes »)
+1b. **Scope établissement (migration 061)** - Un `employee` ou `establishment` ne peut créer un ticket que pour son `attached_establishment_id` : si `p_establishment_id` diffère → rejet ; si le compte n'a pas d'établissement rattaché → rejet. L'`admin` n'est pas contraint (multi-établissements). De plus, pour un `employee`, `p_employee_id` est **forcé à `auth.uid()`** (impossible d'attribuer le ticket à un autre employé). `anon` n'a plus le droit `EXECUTE`.
 2. **Récupération des coefficients** - `xp_coefficient` et `cashback_coefficient` du profil
 3. **Validation des coupons** - Via `validate_coupons()` (seuls les coupons % sont acceptés)
 4. **Validation des paiements** - Via `validate_payment_methods()`
@@ -203,6 +204,8 @@ Après l'insertion du receipt, deux triggers peuvent créer des coupons :
 | Erreur | Cause |
 |--------|-------|
 | `Permissions insuffisantes` | L'utilisateur n'est pas employee/admin/establishment |
+| `Vous ne pouvez créer un ticket que pour votre établissement de rattachement` | `employee`/`establishment` avec un `p_establishment_id` ≠ `attached_establishment_id` (migration 061) |
+| `Aucun établissement rattaché à ce compte` | `employee`/`establishment` sans `attached_establishment_id` (migration 061) |
 | `Profil client non trouvé` | Le `customer_id` n'existe pas |
 | `Coupon invalide` | Un coupon n'existe pas ou n'appartient pas au client |
 | `Coupon déjà utilisé` | Un coupon a déjà été utilisé |

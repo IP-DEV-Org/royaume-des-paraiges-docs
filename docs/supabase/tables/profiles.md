@@ -51,3 +51,5 @@ Profils utilisateurs du Royaume des Paraiges. Synchronisé depuis `auth.users` v
 |---------|-----------|-------------|
 | `set_profiles_updated_at` | BEFORE UPDATE | Met à jour `updated_at` automatiquement |
 | `trg_identity_photo_cooldown` | BEFORE UPDATE | Applique le cooldown de 30 jours sur le changement de photo d'identité |
+| `trg_protect_is_super_admin` | BEFORE UPDATE | Rend `is_super_admin` immuable côté client (seuls `service_role`/`postgres`/`supabase_admin` peuvent le changer). Migration 057. |
+| `trg_protect_role` | BEFORE UPDATE | Restreint la modification de `role` : seul un **super-admin** (`is_super_admin()`) — ou `service_role`/`postgres`/`supabase_admin` — peut changer un `role`. Ne se déclenche que si `NEW.role IS DISTINCT FROM OLD.role`, donc un admin normal peut toujours éditer les autres champs d'un profil. Sans ce garde-fou, la policy RLS self-update permettait à un client de se promouvoir admin via `PATCH /rest/v1/profiles`. Migration 059 (créé, niveau admin) → 060 (resserré au super-admin). |
