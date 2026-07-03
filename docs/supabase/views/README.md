@@ -7,24 +7,36 @@ Les vues materialisees stockent les resultats et doivent etre rafraichies period
 
 ### monthly_xp_leaderboard
 
-Leaderboard mensuel (1er au dernier jour du mois). Joindre avec profiles pour récupérer username, nom, etc. Exclut les comptes test (`profiles.is_test = true`).
+Leaderboard mensuel (1er au dernier jour du mois). Joindre avec profiles pour récupérer username, nom, etc. Exclut les comptes test (`profiles.is_test = true`) et les comptes supprimés (`deleted_at IS NULL`).
+
+> **Migration 058 (03/07/2026)** : les XP sont désormais agrégés depuis `gains` par `customer_id` + `created_at` ∈ période (comme `user_stats`), et non plus via `receipts → gains.receipt_id`. Les gains sans ticket (récompenses de quêtes, bonus, actions utilisateur) comptent donc dans le classement — le total affiché est cohérent avec le profil. Les stats tickets (`receipt_count`, `establishment_count`, `total_spent`) restent calculées depuis `receipts`. Départage du rang : premier ticket de la période, à défaut premier gain.
 
 ```sql
- SELECT r.customer_id,
-    COALESCE(sum(g.xp), 0::bigint) AS monthly_xp,
-    count(DISTINCT r.id) AS monthly_receipt_count,
-    count(DISTINCT r.establishment_id) AS monthly_establishment_count,
-    COALESCE(sum(r.amount), 0::bigint) AS monthly_total_spent,
-    min(r.created_at) AS first_receipt_at,
-    row_number() OVER (ORDER BY (COALESCE(sum(g.xp), 0::bigint)) DESC, (min(r.created_at))) AS rank
+ WITH period_gains AS (
+   SELECT g.customer_id, COALESCE(sum(g.xp), 0)::bigint AS xp, min(g.created_at) AS first_gain_at
+   FROM gains g JOIN profiles p ON p.id = g.customer_id
+   WHERE g.created_at >= date_trunc('month', now()) AND g.created_at < date_trunc('month', now()) + interval '1 mon'
+     AND NOT p.is_test AND p.deleted_at IS NULL
+   GROUP BY g.customer_id
+ ), period_receipts AS (
+   SELECT r.customer_id, count(DISTINCT r.id)::bigint AS receipt_count,
+          count(DISTINCT r.establishment_id)::bigint AS establishment_count,
+          COALESCE(sum(r.amount), 0)::bigint AS total_spent, min(r.created_at) AS first_receipt_at
    FROM receipts r
-     JOIN profiles p ON p.id = r.customer_id
-     LEFT JOIN gains g ON g.receipt_id = r.id
-  WHERE r.created_at >= date_trunc('month'::text, now()) AND r.created_at < (date_trunc('month'::text, now()) + '1 mon'::interval)
-    AND NOT p.is_test
-  GROUP BY r.customer_id
- HAVING COALESCE(sum(g.xp), 0::bigint) > 0
-  ORDER BY (row_number() OVER (ORDER BY (COALESCE(sum(g.xp), 0::bigint)) DESC, (min(r.created_at))));
+   WHERE r.created_at >= date_trunc('month', now()) AND r.created_at < date_trunc('month', now()) + interval '1 mon'
+   GROUP BY r.customer_id
+ )
+ SELECT pg.customer_id,
+    pg.xp AS monthly_xp,
+    COALESCE(pr.receipt_count, 0)::bigint AS monthly_receipt_count,
+    COALESCE(pr.establishment_count, 0)::bigint AS monthly_establishment_count,
+    COALESCE(pr.total_spent, 0)::bigint AS monthly_total_spent,
+    COALESCE(pr.first_receipt_at, pg.first_gain_at) AS first_receipt_at,
+    row_number() OVER (ORDER BY pg.xp DESC, COALESCE(pr.first_receipt_at, pg.first_gain_at)) AS rank
+ FROM period_gains pg
+ LEFT JOIN period_receipts pr ON pr.customer_id = pg.customer_id
+ WHERE pg.xp > 0
+ ORDER BY rank;
 ```
 
 
@@ -53,48 +65,16 @@ Joint directement `profiles → gains` via `customer_id` (au lieu de passer par 
 
 ### weekly_xp_leaderboard
 
-Leaderboard hebdomadaire (lundi-dimanche). Joindre avec profiles pour récupérer username, nom, etc. Exclut les comptes test (`profiles.is_test = true`).
+Leaderboard hebdomadaire (lundi-dimanche). Joindre avec profiles pour récupérer username, nom, etc. Exclut les comptes test (`profiles.is_test = true`) et les comptes supprimés (`deleted_at IS NULL`).
 
-```sql
- SELECT r.customer_id,
-    COALESCE(sum(g.xp), 0::bigint) AS weekly_xp,
-    count(DISTINCT r.id) AS weekly_receipt_count,
-    count(DISTINCT r.establishment_id) AS weekly_establishment_count,
-    COALESCE(sum(r.amount), 0::bigint) AS weekly_total_spent,
-    min(r.created_at) AS first_receipt_at,
-    row_number() OVER (ORDER BY (COALESCE(sum(g.xp), 0::bigint)) DESC, (min(r.created_at))) AS rank
-   FROM receipts r
-     JOIN profiles p ON p.id = r.customer_id
-     LEFT JOIN gains g ON g.receipt_id = r.id
-  WHERE r.created_at >= date_trunc('week'::text, now()) AND r.created_at < (date_trunc('week'::text, now()) + '7 days'::interval)
-    AND NOT p.is_test
-  GROUP BY r.customer_id
- HAVING COALESCE(sum(g.xp), 0::bigint) > 0
-  ORDER BY (row_number() OVER (ORDER BY (COALESCE(sum(g.xp), 0::bigint)) DESC, (min(r.created_at))));
-```
+> **Migration 058 (03/07/2026)** : même refonte que `monthly_xp_leaderboard` (voir plus haut) — les XP viennent de `gains` par `customer_id` (quêtes et bonus inclus), bornes `date_trunc('week', now())` → `+ interval '7 days'`.
 
 
 ### yearly_xp_leaderboard
 
-Leaderboard annuel (1er janvier au 31 décembre). Joindre avec profiles pour récupérer username, nom, etc. Exclut les comptes test (`profiles.is_test = true`).
+Leaderboard annuel (1er janvier au 31 décembre). Joindre avec profiles pour récupérer username, nom, etc. Exclut les comptes test (`profiles.is_test = true`) et les comptes supprimés (`deleted_at IS NULL`).
 
-```sql
- SELECT r.customer_id,
-    COALESCE(sum(g.xp), 0::bigint) AS yearly_xp,
-    count(DISTINCT r.id) AS yearly_receipt_count,
-    count(DISTINCT r.establishment_id) AS yearly_establishment_count,
-    COALESCE(sum(r.amount), 0::bigint) AS yearly_total_spent,
-    min(r.created_at) AS first_receipt_at,
-    row_number() OVER (ORDER BY (COALESCE(sum(g.xp), 0::bigint)) DESC, (min(r.created_at))) AS rank
-   FROM receipts r
-     JOIN profiles p ON p.id = r.customer_id
-     LEFT JOIN gains g ON g.receipt_id = r.id
-  WHERE r.created_at >= date_trunc('year'::text, now()) AND r.created_at < (date_trunc('year'::text, now()) + '1 year'::interval)
-    AND NOT p.is_test
-  GROUP BY r.customer_id
- HAVING COALESCE(sum(g.xp), 0::bigint) > 0
-  ORDER BY (row_number() OVER (ORDER BY (COALESCE(sum(g.xp), 0::bigint)) DESC, (min(r.created_at))));
-```
+> **Migration 058 (03/07/2026)** : même refonte que `monthly_xp_leaderboard` (voir plus haut) — les XP viennent de `gains` par `customer_id` (quêtes et bonus inclus), bornes `date_trunc('year', now())` → `+ interval '1 year'`.
 
 
 ## Vues (6)
