@@ -39,7 +39,7 @@ GRANT : `SELECT, INSERT, DELETE` à `authenticated` (la RLS porte la sécurité)
 
 - **Middleware admin** (`src/lib/supabase/middleware.ts`) : une seule query étendue `profiles.select("role, is_super_admin, admin_disabled_features!profile_id(feature_key)")` — blocage dur (redirect `/?error=feature_disabled`) des URLs des fonctionnalités désactivées. ⚠️ le `!profile_id` est obligatoire (2 FK vers `profiles`, embed ambigu sinon).
 - **`CurrentAdminProvider`** (client) : masque les entrées correspondantes de la sidebar et de la palette Cmd+K.
-- **Page `/settings/access`** (super admin uniquement) : matrice d'interrupteurs admins × fonctionnalités. Service : `src/lib/services/adminAccessService.ts`.
+- **Onglet « Administrateurs » de `/settings`** (visible super admin uniquement, deep-link `?tab=admins`) : matrice d'interrupteurs admins × fonctionnalités. Service : `src/lib/services/adminAccessService.ts`.
 
 ## Voir aussi
 
