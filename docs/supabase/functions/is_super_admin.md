@@ -41,6 +41,8 @@ Le double critère `is_super_admin AND role = 'admin'` garantit qu'une rétrogra
 ## Utilisée par
 
 - Policies RLS de [`admin_disabled_features`](../tables/admin_disabled_features.md) (`read own or super admin`, `super admin insert`, `super admin delete`).
+- Trigger `trg_protect_role` sur `profiles` (migrations 059-060) : seul un super admin peut changer le `role` d'un profil.
+- UI admin : sélecteur de rôle de l'onglet Édition (`/users/[id]`) désactivé pour les non-super-admins.
 
 ## Voir aussi
 

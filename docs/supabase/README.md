@@ -102,7 +102,11 @@ Cette section documente l'utilisation de Supabase comme backend pour le Royaume 
 ## Migrations
 
 Les migrations SQL sont appliquées automatiquement. Voir `supabase_migrations.schema_migrations` pour la liste complète. Dernières migrations notables :
-- **Juillet 2026** : Migration 057 — super admin + accès par fonctionnalité (`profiles.is_super_admin`, table `admin_disabled_features`, helper `is_super_admin()`, trigger anti-escalade `trg_protect_is_super_admin`)
+- **Juillet 2026** :
+  - **057** (+ **057b**) — super admin + accès par fonctionnalité (`profiles.is_super_admin`, table `admin_disabled_features`, helper `is_super_admin()`, trigger anti-escalade `trg_protect_is_super_admin` ; 057b = REVOKE EXECUTE du trigger exposé via PostgREST)
+  - **058** — les leaderboards XP (matviews weekly/monthly/yearly) comptent **tous** les gains (tickets + quêtes + bonus), alignés sur `user_stats` ; avant, les gains sans ticket étaient exclus
+  - **059 → 060** — protection de `profiles.role` : trigger `trg_protect_role` (créé en 059 au niveau admin, resserré en 060 au **super-admin** seul) — sans lui, la policy self-update permettait l'auto-promotion admin
+  - **061** — `create_receipt` : scope établissement pour `employee`/`establishment` (ticket uniquement pour leur `attached_establishment_id`, `p_employee_id` forcé à `auth.uid()` pour un employee)
 - **Mai 2026** : identity_photo_feature, GDPR (anonymisation + rétention), establishment_consumption_types, identity_photo_cooldown, level_thresholds_admin_rls
 - **18 mai 2026** : Hardening sécurité (16 migrations), establishment_groups
 - **Mai 2026** : Réconciliation Cashpad (migrations 032-036)
