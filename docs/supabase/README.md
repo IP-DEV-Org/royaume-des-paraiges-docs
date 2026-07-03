@@ -91,6 +91,7 @@ Cette section documente l'utilisation de Supabase comme backend pour le Royaume 
 - `legal_pages` - Pages légales (colonne `version` — bump force re-acceptation)
 - `user_legal_consents` - Journal d'acceptation versionnée des documents légaux (immuable, RLS user-self)
 - `admin_settings` - Paramétrage admin key-value JSONB
+- `admin_disabled_features` - Accès par fonctionnalité entre admins (super admin, migration 057)
 
 ### Tables de liaison (M2M)
 - `beers_establishments` - Bières-Établissements
@@ -101,6 +102,7 @@ Cette section documente l'utilisation de Supabase comme backend pour le Royaume 
 ## Migrations
 
 Les migrations SQL sont appliquées automatiquement. Voir `supabase_migrations.schema_migrations` pour la liste complète. Dernières migrations notables :
+- **Juillet 2026** : Migration 057 — super admin + accès par fonctionnalité (`profiles.is_super_admin`, table `admin_disabled_features`, helper `is_super_admin()`, trigger anti-escalade `trg_protect_is_super_admin`)
 - **Mai 2026** : identity_photo_feature, GDPR (anonymisation + rétention), establishment_consumption_types, identity_photo_cooldown, level_thresholds_admin_rls
 - **18 mai 2026** : Hardening sécurité (16 migrations), establishment_groups
 - **Mai 2026** : Réconciliation Cashpad (migrations 032-036)
