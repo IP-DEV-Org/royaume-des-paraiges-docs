@@ -107,6 +107,7 @@ Les migrations SQL sont appliquées automatiquement. Voir `supabase_migrations.s
   - **058** — les leaderboards XP (matviews weekly/monthly/yearly) comptent **tous** les gains (tickets + quêtes + bonus), alignés sur `user_stats` ; avant, les gains sans ticket étaient exclus
   - **059 → 060** — protection de `profiles.role` : trigger `trg_protect_role` (créé en 059 au niveau admin, resserré en 060 au **super-admin** seul) — sans lui, la policy self-update permettait l'auto-promotion admin
   - **061** — `create_receipt` : scope établissement pour `employee`/`establishment` (ticket uniquement pour leur `attached_establishment_id`, `p_employee_id` forcé à `auth.uid()` pour un employee)
+  - **062** — RPC `get_establishment_kpis(p_start_date, p_end_date)` : KPIs par établissement pour la page admin `/analytics/establishments` (ventes, CA €, PdB dépensés/générés, nouveaux clients = premier receipt all-time dans l'établissement, clients actifs, salariés) — admin only, cf. [`functions/get_establishment_kpis.md`](./functions/get_establishment_kpis.md)
 - **Mai 2026** : identity_photo_feature, GDPR (anonymisation + rétention), establishment_consumption_types, identity_photo_cooldown, level_thresholds_admin_rls
 - **18 mai 2026** : Hardening sécurité (16 migrations), establishment_groups
 - **Mai 2026** : Réconciliation Cashpad (migrations 032-036)
