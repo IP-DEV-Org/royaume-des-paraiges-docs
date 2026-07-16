@@ -105,9 +105,11 @@ Les migrations SQL sont appliquées automatiquement. Voir `supabase_migrations.s
 - **Juillet 2026** :
   - **057** (+ **057b**) — super admin + accès par fonctionnalité (`profiles.is_super_admin`, table `admin_disabled_features`, helper `is_super_admin()`, trigger anti-escalade `trg_protect_is_super_admin` ; 057b = REVOKE EXECUTE du trigger exposé via PostgREST)
   - **058** — les leaderboards XP (matviews weekly/monthly/yearly) comptent **tous** les gains (tickets + quêtes + bonus), alignés sur `user_stats` ; avant, les gains sans ticket étaient exclus
-  - **059 → 060** — protection de `profiles.role` : trigger `trg_protect_role` (créé en 059 au niveau admin, resserré en 060 au **super-admin** seul) — sans lui, la policy self-update permettait l'auto-promotion admin
+  - **059 → 060 → 064** — protection de `profiles.role` : trigger `trg_protect_role` (créé en 059 au niveau admin, resserré en 060 au **super-admin** seul, rouvert en 064 à la seule bascule `client` ↔ `employee` pour les admins non super) — sans lui, la policy self-update permettait l'auto-promotion admin
   - **061** — `create_receipt` : scope établissement pour `employee`/`establishment` (ticket uniquement pour leur `attached_establishment_id`, `p_employee_id` forcé à `auth.uid()` pour un employee)
   - **062** — RPC `get_establishment_kpis(p_start_date, p_end_date)` : KPIs par établissement pour la page admin `/analytics/establishments` (ventes, CA €, PdB dépensés/générés, nouveaux clients = premier receipt all-time dans l'établissement, clients actifs, salariés) — admin only, cf. [`functions/get_establishment_kpis.md`](./functions/get_establishment_kpis.md)
+  - **063** — liens de redirection `redirect.auxparaiges.fr` (`redirect_links`, `redirect_clicks`, vue `redirect_link_stats`) pour la page admin `/links` + le projet `url-rooting-app`
+  - **064 → 065** — `trg_protect_role` assoupli (bascule `client` ↔ `employee` par un admin non super) + contrainte `profiles_staff_requires_establishment` : tout compte du personnel (`employee` en 064, étendu à `establishment` en 065) doit avoir un `attached_establishment_id`, cf. [`tables/profiles.md`](./tables/profiles.md)
 - **Mai 2026** : identity_photo_feature, GDPR (anonymisation + rétention), establishment_consumption_types, identity_photo_cooldown, level_thresholds_admin_rls
 - **18 mai 2026** : Hardening sécurité (16 migrations), establishment_groups
 - **Mai 2026** : Réconciliation Cashpad (migrations 032-036)
