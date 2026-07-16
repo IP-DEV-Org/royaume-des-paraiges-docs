@@ -37,6 +37,7 @@ Un utilisateur non-admin ne peut ni lire ni écrire dans cette table.
 |---|---|---|---|
 | `quest_alert_ratio_pct` | number | `10` | Seuil (%) : alerte sur le dashboard santé des quêtes si `bonus_cashback > (ratio / 100) × montant_reference_attendu`. |
 | `quest_reference_prices_cents` | object | `{"biere": 600, "cocktail": 800, "alcool": 800, "soft": 350, "boisson_chaude": 250, "restauration": 700}` | Prix de référence par `consumption_type` (centimes), utilisés pour calculer le montant attendu à dépenser pour compléter une quête `consumption_count`. |
+| `quest_repeat_level_tiers` | string ou array | `"auto"` | **Migrations 066 + 068 (bimodale).** Répétition des défis répétables : `"auto"` (défaut depuis la 068) = plafond lié au **rang** du joueur (rang N → N complétions, suit dynamiquement la table `ranks`) ; tableau `[{min_level, max_completions}]` non vide = barème **manuel** par niveau (palier de plus haut `min_level` atteint). Clé absente/invalide ⇒ mode auto ; exception ⇒ 1. Lu par la fonction SQL `get_max_quest_completions()`. Édité via la Card « Répétition des défis » de `/settings` (toggle auto/manuel). |
 
 ## Convention JSONB
 

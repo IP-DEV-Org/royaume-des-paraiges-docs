@@ -1,6 +1,6 @@
 # Table: quest_completion_logs
 
-Historique detaille de toutes les completions de quetes avec recompenses
+Historique detaille de toutes les completions de quetes avec recompenses. Depuis la migration 066 (quêtes répétables), **une ligne par itération** : les montants loggés (`bonus_xp_awarded`, `bonus_cashback_awarded`, `coupon_template_id`, `target_value`) sont les valeurs **résolues** de l'itération (override `quest_iterations` ou fallback quête de base).
 
 ## Informations
 
@@ -25,13 +25,18 @@ Historique detaille de toutes les completions de quetes avec recompenses
 | `badge_awarded_id` | `bigint` | Oui | - | - |
 | `bonus_xp_awarded` | `integer` | Non | 0 | - |
 | `bonus_cashback_awarded` | `integer` | Non | 0 | - |
-| `final_value` | `integer` | Non | - | - |
-| `target_value` | `integer` | Non | - | - |
+| `final_value` | `integer` | Non | - | `current_value` au moment de la distribution |
+| `target_value` | `integer` | Non | - | Objectif **de l'itération** (override ou base) — migration 066 |
+| `iteration` | `integer` | Non | 1 | **Migration 066.** Numéro d'itération (1 = première complétion de la période). UNIQUE avec `quest_progress_id`. |
 | `completed_at` | `timestamp with time zone` | Non | now() | - |
 
 ## Cles primaires
 
 - `id`
+
+## Index uniques
+
+- `quest_completion_logs_progress_iteration_key` UNIQUE (`quest_progress_id`, `iteration`) — invariant : une seule distribution par itération (migration 066).
 
 ## Relations (Foreign Keys)
 

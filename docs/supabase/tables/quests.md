@@ -39,6 +39,7 @@ Le mot **quête** reste acceptable dans la doc **uniquement** si on précise « 
 | `bonus_xp` | `integer` | Non | 0 | XP bonus en plus des gains normaux |
 | `bonus_cashback` | `integer` | Non | 0 | Cashback bonus en centimes |
 | `is_active` | `boolean` | Non | true | Visible côté client. Désactiver pour archiver sans supprimer. |
+| `is_repeatable` | `boolean` | Non | false | **Migrations 066 + 067 (opt-in).** Si `true`, la quête peut être complétée plusieurs fois par période selon le niveau du joueur (barème `admin_settings['quest_repeat_level_tiers']`). Défaut `false` = 1 complétion max quel que soit le niveau — la répétition s'active explicitement quête par quête. Voir section « Répétition selon le niveau ». |
 | `display_order` | `integer` | Non | 0 | Ordre d'affichage |
 | `created_at` | `timestamptz` | Non | now() | - |
 | `updated_at` | `timestamptz` | Non | now() | - |
@@ -128,3 +129,13 @@ L'incident d'avril 2026 (multi-complétion sur un seul ticket, ratio PdB/ticket 
 - **PR#4** ✅ Dashboard `/quests/health` (ratio bonus PdB / panier attendu + alertes) et page `/settings` (CRUD des clés `quest_alert_ratio_pct` et `quest_reference_prices_cents`). Service `lib/services/adminSettingsService.ts`.
 
 Bonus standard : +25 XP / 2-5 €. Pas de badge attaché en V1.
+
+## Répétition selon le niveau (migrations 066 + 067, juillet 2026)
+
+Une quête `is_repeatable = true` (**opt-in** — défaut `false` depuis la 067, à activer quête par quête depuis l'admin) peut être complétée **plusieurs fois dans la même période**, selon le niveau de saison du joueur :
+
+- **Plafond lié au rang par défaut** (migration 068) : rang N → N complétions (Écuyer → 1, Soldat → 2, …), en suivant dynamiquement la table `ranks`. Un **barème manuel** par niveau reste possible via `admin_settings['quest_repeat_level_tiers']` (tableau `[{min_level, max_completions}]`, toggle auto/manuel dans `/settings` admin). Résolu par la fonction SQL `get_max_quest_completions(customer_id)` (wrapper client : `get_my_max_quest_completions()`), garde-fou ultime = 1.
+- **Déblocage séquentiel par cumul continu** : l'itération k est débloquée quand le cumul de la période atteint la **somme des objectifs des itérations 1..k** (le surplus n'est jamais perdu).
+- **Overrides par itération** via la table [`quest_iterations`](./quest_iterations.md) : objectif et gains (coupon / bonus XP / bonus PdB) spécifiques par itération ≥ 2. Champ NULL = héritage de la quête de base. L'itération 1 = la quête elle-même.
+- **Récompenses** : coupon + bonus XP + bonus PdB re-distribués à **chaque** itération ; le **badge** reste attribué 1×/période (clé unique `user_badges`).
+- Le moteur vit dans le trigger `distribute_quest_rewards` (BEFORE UPDATE sur `quest_progress` + touch AFTER INSERT), idempotent via le compteur monotone `quest_progress.completions_count`.

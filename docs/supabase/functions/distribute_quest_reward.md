@@ -1,8 +1,8 @@
 # Function: distribute_quest_reward
 
-Distribue manuellement la récompense d'une quête complétée (coupon + badge + bonus XP/cashback) à partir d'une ligne de `quest_progress` au statut `completed`. Admin only.
+Rejeu manuel (admin) de la distribution des récompenses d'une ligne `quest_progress`. **Depuis la migration 066 (quêtes répétables), c'est un simple « touch »** : la fonction déclenche le trigger `distribute_quest_rewards()` (source unique de vérité de toute distribution) via `UPDATE quest_progress SET updated_at = now()`, puis rapporte ce qui a été distribué.
 
-Distinct du trigger automatique `distribute_quest_rewards()` (sans `_reward` au singulier) qui s'exécute à chaque INSERT/UPDATE de `quest_progress`. Ce wrapper RPC est appelé depuis l'admin pour forcer / rejouer une distribution.
+Distinct du trigger automatique `distribute_quest_rewards()` (avec un `s`) qui s'exécute sur chaque UPDATE de `quest_progress` (+ trigger « touch » AFTER INSERT pour les lignes insérées directement complétées).
 
 ## Signature
 
@@ -18,63 +18,63 @@ SET search_path = public
 
 | Parametre | Type | Requis | Description |
 |-----------|------|--------|-------------|
-| `p_quest_progress_id` | `BIGINT` | Oui | ID de la ligne `quest_progress` à distribuer. Doit être au statut `completed` (sinon erreur). |
+| `p_quest_progress_id` | `BIGINT` | Oui | ID de la ligne `quest_progress` à (re)distribuer. |
 
-> **Migration 040 (18/05/2026)** : le paramètre `p_admin_id` a été **retiré**. L'audit trail (`coupon_distribution_logs.distributed_by` indirectement via `credit_bonus_cashback`, et `quest_completion_logs`) utilise `auth.uid()`.
+> **Migration 040 (18/05/2026)** : le paramètre `p_admin_id` a été retiré ; signature inchangée depuis.
+
+## Comportement (migration 066)
+
+1. `PERFORM assert_admin()` — admin only.
+2. Refuse une ligne inexistante (`Quest progress not found`) ou expirée (`Quest progress expired`).
+3. Snapshot de `completions_count`, puis touch → le trigger décide : itérations nouvellement atteignables (cumul ≥ seuils cumulés, plafond niveau via [`get_max_quest_completions`](./get_max_quest_completions.md)), distribution par itération (coupon + bonus XP + bonus PdB en `gains`, badge 1×/période), une ligne `quest_completion_logs` par itération.
+4. Si `completions_count` n'a pas bougé → `{"success": false, "error": "Nothing to distribute"}` (état déjà à jour — un skip, pas une erreur). Effet de bord utile : le touch normalise aussi le `status` de la ligne.
+5. Sinon retourne le détail des itérations distribuées.
+
+> ⚠️ **Changement de comportement 066** : l'ancienne implémentation parallèle créditait directement `profiles.total_xp` / `profiles.cashback_balance`. Le rejeu admin écrit désormais des lignes **`gains`** (`source_type = 'bonus_cashback_quest'`), comme le chemin automatique — correction de la divergence historique.
 
 ## Retour
 
 ```json
 {
   "success": true,
-  "quest_id": 5,
-  "quest_name": "Champion hebdo",
+  "quest_id": 35,
+  "quest_name": "Défi des nectars",
   "customer_id": "uuid",
-  "period_identifier": "2026-W21",
-  "is_bonus_cashback": true,
-  "rewards": {
-    "coupon_id": 123,
-    "gain_id": 456,
-    "badge_id": 12,
-    "bonus_xp": 50,
-    "bonus_cashback": 200
-  }
+  "period_identifier": "2026-W29",
+  "completions_count": 2,
+  "status": "in_progress",
+  "iterations_distributed": [
+    { "iteration": 2, "coupon_id": null, "badge_id": null, "bonus_xp": 50, "bonus_cashback": 200 }
+  ]
 }
 ```
 
-Cas d'erreur (retourne `{ "success": false, "error": "..." }`) :
+Cas d'échec (retourne `{ "success": false, "error": "..." }`) :
 - `Quest progress not found`
-- `Quest already rewarded` (statut = `rewarded`)
-- `Quest not completed yet` (statut ≠ `completed`)
+- `Quest progress expired`
+- `Nothing to distribute`
 
-## Logique
+## Fonction batch : distribute_all_quest_rewards
 
-1. `PERFORM public.assert_admin()` — bloque les non-admins (voir Securite).
-2. Charge la ligne `quest_progress`. Si introuvable → erreur.
-3. Vérifie statut = `completed` (sinon erreur dédiée).
-4. Charge la `quest` associée.
-5. Si `quest.coupon_template_id` défini :
-   - Charge `coupon_templates`.
-   - Determine `is_bonus_cashback = (amount IS NOT NULL AND percentage IS NULL)`.
-   - INSERT `coupons` (`distribution_type = 'quest'`, `period_identifier`).
-   - Si bonus cashback : appelle `credit_bonus_cashback(..., 'bonus_cashback_quest', period_identifier)`.
-6. Si `quest.badge_type_id` défini : INSERT `user_badges` (ON CONFLICT DO NOTHING).
-7. Si `quest.bonus_xp > 0` : `UPDATE profiles SET total_xp = COALESCE(total_xp,0) + bonus_xp`.
-8. Si `quest.bonus_cashback > 0` : `UPDATE profiles SET cashback_balance = COALESCE(cashback_balance,0) + bonus_cashback`.
-9. INSERT `quest_completion_logs`.
-10. `UPDATE quest_progress SET status = 'rewarded', rewarded_at = now(), updated_at = now()`.
+```sql
+distribute_all_quest_rewards(p_admin_id uuid DEFAULT NULL) RETURNS json
+```
+
+Parcourt les lignes `quest_progress` avec `status IN ('in_progress','completed') AND current_value >= target_value` (borne basse volontairement large : le trigger, idempotent, décide réellement) et appelle `distribute_quest_reward(id)` pour chacune. Retourne `{distributed, skipped, errors}` — un « Nothing to distribute » compte comme skip.
+
+> Réparée par la 066 : elle appelait un overload 2-args `distribute_quest_reward(id, admin_id)` **inexistant** (cassée depuis la migration 040). Utile notamment pour payer les reliquats `completed` pré-066 (30 complétions légitimes jamais récompensées à cause du bug « complétion au premier INSERT », corrigé par la 066).
 
 ## Securite
 
-Depuis la migration **040 (18/05/2026)** :
-
 - Première instruction : `PERFORM public.assert_admin()`. Voir [`assert_admin.md`](./assert_admin.md).
-- `GRANT EXECUTE TO authenticated`, `REVOKE EXECUTE FROM PUBLIC, anon`.
-- L'audit trail est désormais non falsifiable : dérivé de `auth.uid()` au lieu de l'ex-paramètre `p_admin_id`.
-- Le trigger automatique `distribute_quest_rewards()` (sans le `_reward` singulier) reste lui aussi protégé : il s'exécute en owner `postgres` (bypass automatique via `session_user`).
+- `GRANT EXECUTE TO authenticated`, `REVOKE EXECUTE FROM PUBLIC, anon` (ACL préservées par `CREATE OR REPLACE`).
+- L'audit trail est dérivé de `auth.uid()`.
 
 ## Notes
 
-- Idempotente via le check `status = completed` : appeler 2× ne distribue pas 2 fois.
-- Pour rejouer après un échec partiel, repasser manuellement le statut à `completed` puis rappeler la RPC.
-- Le `bonus_xp` / `bonus_cashback` met à jour `profiles.total_xp` et `profiles.cashback_balance` — colonnes legacy conservées pour rétro-compat même si le calcul officiel passe par la vue `user_stats`.
+- Idempotente via le compteur monotone `quest_progress.completions_count` : appeler 2× ne distribue pas 2 fois.
+- Plus besoin de repasser manuellement un statut à `completed` pour rejouer : le trigger recalcule tout depuis `current_value` / `completions_count`.
+
+## Appelée par
+
+- Dashboard admin (`questService.distributeQuestReward` / `distributeAllQuestRewards`).
