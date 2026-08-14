@@ -54,6 +54,7 @@ gdpr_anonymize_user(target_user_id uuid) RETURNS jsonb
 
 - L'utilisateur peut demander sa propre suppression
 - Un admin peut anonymiser n'importe quel utilisateur
+- **La cible doit être un compte `client`** (migration 073) : un compte `employee` / `establishment` / `admin` lève `P0424` (`ACCOUNT_ROLE_PROTECTED:`), y compris pour l'intéressé lui-même et pour un admin. Le refus intervient **avant** l'écriture dans `gdpr_requests`. Pour supprimer un compte du personnel, le repasser d'abord en `client`. Garde-fou doublé côté triggers `BEFORE DELETE` (`auth.users` + `profiles`), cf. [triggers](../triggers/README.md#trg_protect_staff_account_delete--trg_protect_staff_profile_delete-migration-073).
 - `SECURITY DEFINER` avec `search_path = 'public'`
 
 ### Opérations effectuées

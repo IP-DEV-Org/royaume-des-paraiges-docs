@@ -15,12 +15,14 @@
 | `gains_refresh_cashback_coefficient` | `gains` | AFTER INSERT/UPDATE/DELETE | `trigger_refresh_cashback_coefficient` | Recalcule le coefficient cashback après modification des gains |
 | `trg_identity_photo_cooldown` | `profiles` | BEFORE UPDATE | `enforce_identity_photo_cooldown` | Cooldown 30 jours sur changement de photo d'identité |
 
-### Triggers de validation (2)
+### Triggers de validation (4)
 
 | Trigger | Table | Événement | Fonction | Description |
 |---------|-------|-----------|----------|-------------|
 | `check_deleted_user_on_receipt` | `receipts` | BEFORE INSERT | `create_receipt_deleted_check` | Bloque la création de receipt pour un utilisateur supprimé |
 | `check_deleted_user_on_gain` | `gains` | BEFORE INSERT | `check_deleted_user_on_gain` | Bloque la création de gain pour un utilisateur supprimé |
+| `trg_protect_staff_account_delete` | `auth.users` | BEFORE DELETE | `protect_staff_account_delete` | Bloque la suppression d'un compte dont le rôle n'est pas `client` (errcode `P0424`) |
+| `trg_protect_staff_profile_delete` | `profiles` | BEFORE DELETE | `protect_staff_account_delete` | Même garde-fou sur la ligne `profiles` elle-même |
 
 ### Triggers auto-timestamp (10)
 
@@ -102,6 +104,22 @@ Garde-fou qui empêche le solde de **Paraiges de Bronze (PdB)** d'un client de d
 **Portée volontaire** : couvre uniquement les mutations de `gains` (annulation = gain négatif `rollback_beta_correction`, `DELETE`, `UPDATE` réducteur). Ne touche pas le chemin de dépense (`receipt_lines` / `create_receipt`), qui conserve sa propre logique. Comme `create_receipt` insère un gain *positif*, le trigger ne le bloque jamais à tort.
 
 Détail complet : [`functions/enforce_non_negative_cashback.md`](../functions/enforce_non_negative_cashback.md).
+
+### trg_protect_staff_account_delete / trg_protect_staff_profile_delete (migration 073)
+
+- **Tables**: `auth.users` et `public.profiles`
+- **Fonction**: `protect_staff_account_delete` (`SECURITY DEFINER`)
+- **Événement**: `BEFORE DELETE`
+
+**Seul un compte de rôle `client` peut être supprimé.** Toute tentative de suppression d'un compte `employee` / `establishment` / `admin` lève `ERRCODE = 'P0424'` (message préfixé `ACCOUNT_ROLE_PROTECTED:`).
+
+Depuis la migration 052, la suppression de compte a un point d'entrée unique (`DELETE FROM auth.users`, qui déclenche `handle_user_delete()`) : le trigger sur `auth.users` couvre donc l'app cliente, le dashboard admin et l'Admin API GoTrue. Le trigger jumeau sur `profiles` protège la ligne de profil, qui survit (anonymisée) à la suppression auth.
+
+**Échappatoire** : `session_user IN ('postgres', 'supabase_admin')`, c'est-à-dire un accès SQL direct (éditeur Supabase, migration) : même convention que `protect_role`. `service_role` n'est **pas** exempté, contrairement à `protect_role` / `protect_is_super_admin` : c'est justement le chemin Admin API que l'on veut couvrir.
+
+**Procédure pour supprimer un compte du personnel** : le repasser d'abord en `client` (opération gardée par `protect_role`, migrations 059/064), puis le supprimer normalement.
+
+La RPC `gdpr_anonymize_user` embarque la même garde en amont, pour un message exploitable côté app et pour ne pas journaliser dans `gdpr_requests` une demande qui n'aboutira pas.
 
 ## Triggers supprimés
 
