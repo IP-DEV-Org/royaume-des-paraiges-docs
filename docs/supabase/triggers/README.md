@@ -2,7 +2,7 @@
 
 ## Liste des triggers
 
-### Triggers métier (8)
+### Triggers métier (9)
 
 | Trigger | Table | Événement | Fonction | Description |
 |---------|-------|-----------|----------|-------------|
@@ -14,6 +14,7 @@
 | `trigger_distribute_quest_rewards` | `quest_progress` | AFTER UPDATE | `distribute_quest_rewards` | Distribue les récompenses quand une quête est complétée |
 | `gains_refresh_cashback_coefficient` | `gains` | AFTER INSERT/UPDATE/DELETE | `trigger_refresh_cashback_coefficient` | Recalcule le coefficient cashback après modification des gains |
 | `trg_identity_photo_cooldown` | `profiles` | BEFORE UPDATE | `enforce_identity_photo_cooldown` | Cooldown 30 jours sur changement de photo d'identité |
+| `trg_purge_replaced_profile_media` | `profiles` | AFTER UPDATE OF `avatar_url`, `identity_photo_url` | `purge_replaced_profile_media` | Supprime du Storage l'avatar / la photo d'identification remplacés (migration 075) |
 
 ### Triggers de validation (4)
 

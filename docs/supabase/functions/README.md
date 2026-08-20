@@ -272,7 +272,7 @@ Fonction trigger generique qui met a jour la colonne `updated_at` a `now()` lors
 
 ### handle_user_delete
 
-Supprime automatiquement le profil dans public.profiles quand un utilisateur est supprimé de auth.users
+Déclenché par la suppression d'une ligne `auth.users`. Ne supprime pas le profil : il le **conserve et l'anonymise** (`deleted_at`, email/username neutralisés, champs personnels à NULL), nettoie les données rattachées (likes, comments, badges, quest_progress, coupons non utilisés), dé-lie les références métier (`receipts.employee_id` → NULL, etc.) et purge les fichiers personnels du Storage via `gdpr_purge_user_storage()` (migration 074, best-effort). Voir [gdpr.md](./gdpr.md).
 
 - **Arguments**: `aucun`
 - **Retour**: `trigger`

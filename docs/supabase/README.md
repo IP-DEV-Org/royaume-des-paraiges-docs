@@ -21,9 +21,9 @@ Cette section documente l'utilisation de Supabase comme backend pour le Royaume 
 - **97 fonctions** PostgreSQL — incluant RPCs sécurisées (mai 2026) remplaçant les accès directs aux MV, fonctions RGPD (mai 2026), gestion photo d'identité avec cooldown, et garde-fou solde PdB non négatif (`enforce_non_negative_cashback`, migration 043)
 - **4 vues materialisees** (`weekly_xp_leaderboard`, `monthly_xp_leaderboard`, `yearly_xp_leaderboard`, `user_stats`) — **fermées à l'API PostgREST** depuis 18/05/2026 ; lisibles uniquement via les RPC wrappers.
 - **6 vues** SQL (cashpad_health_*, public_profiles, avg_ticket_12m, reward_distribution_stats) — passées en `security_invoker=true` 18/05/2026.
-- **20 triggers** (8 métier + 2 validation + 10 auto-timestamp) — voir `triggers/README.md`
-- **4 jobs pg_cron** pour distributions automatiques (dont `award_achievements_cron` quotidien 02:00 UTC)
-- **2 buckets storage** (avatars, content-assets) — policies durcies 18/05/2026 (plus de listing public, plus d'écrasement d'avatars d'autrui)
+- **21 triggers** (9 métier + 2 validation + 10 auto-timestamp) — voir `triggers/README.md`
+- **11 jobs pg_cron** : distributions automatiques, `award_achievements_cron` (02:00 UTC), crons `cashpad-*` (03:00 / 03:30), `gdpr-data-retention` (mensuel) et `gdpr-purge-orphan-storage` (04:15 UTC, migration 074)
+- **4 buckets storage** (avatars, identity-photos, content-assets, website) — policies durcies 18/05/2026 (plus de listing public, plus d'écrasement d'avatars d'autrui) ; effacement RGPD des fichiers personnels depuis la migration 074
 - **3 edge functions** (cashpad-webhook, cashpad-process-queue, cashpad-reconcile-daily) — voir `edge-functions/README.md`
 - **4 enums** personnalises (consumption_type, payment_method, quest_type, user_role)
 

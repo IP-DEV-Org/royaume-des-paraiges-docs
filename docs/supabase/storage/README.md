@@ -88,6 +88,18 @@ content-assets/
 | Users can delete their own avatar | `bucket_id = 'avatars'` ET `name ~ auth.uid() + pattern` |
 | Users can delete their own avatars | `bucket_id = 'avatars'` |
 
+### Effacement RGPD (migration 074)
+
+Les buckets `avatars` et `identity-photos` sont **publics** et les noms dérivent de l'UUID : un fichier laissé en place après suppression de compte reste atteignable par URL devinable. Deux mécanismes le garantissent désormais :
+
+- `handle_user_delete()` purge les fichiers du compte au moment de sa suppression ;
+- `trg_purge_replaced_profile_media` (migration 075) supprime l'ancien fichier dès qu'un profil change d'avatar ou de photo d'identification ;
+- le cron **`gdpr-purge-orphan-storage`** (`15 4 * * *`) balaie quotidiennement les fichiers sans titulaire vivant **et** les versions périmées, en filet des deux triggers.
+
+⚠️ Toute purge doit passer par l'**API Storage**, jamais par `DELETE FROM storage.objects` : le DELETE SQL ne retire que les métadonnées et laisse le blob dans le bucket S3. Supabase le bloque d'ailleurs désormais (`storage.protect_delete()`). Détail des fonctions : [functions/gdpr.md](../functions/gdpr.md#purge-du-storage-migration-074).
+
+> **Ne pas remettre de suppression côté client.** `supabase.storage.remove()` renvoie `{ data: [], error: null }` quand la policy RLS refuse : un échec y est indétectable, ce qui a laissé s'accumuler 369 versions périmées jusqu'au 14/08/2026. Et supprimer avant l'écriture du profil détruit l'image courante si celle-ci est ensuite rejetée (cooldown 30 j de la photo d'identification).
+
 ---
 
 ## Convention de Nommage
