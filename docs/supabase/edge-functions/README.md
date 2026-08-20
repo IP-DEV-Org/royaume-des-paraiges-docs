@@ -1,12 +1,13 @@
 # Edge Functions
 
-## Liste des Edge Functions (3)
+## Liste des Edge Functions (4)
 
 | Slug | Nom | JWT Required | Status | Version |
 |------|-----|--------------|--------|---------|
 | `cashpad-webhook` | cashpad-webhook | Oui | ACTIVE | 2 |
 | `cashpad-process-queue` | cashpad-process-queue | Oui | ACTIVE | 2 |
 | `cashpad-reconcile-daily` | cashpad-reconcile-daily | Oui | ACTIVE | 13 |
+| `send-email-reports` | send-email-reports | **Non** (à désactiver) | ACTIVE | 2 |
 
 > **Note** : L'edge function `send-contact-email` (anciennement documentée ici) a été supprimée lors de la migration vers le projet IPDEV.
 
@@ -61,3 +62,51 @@ Réconciliation quotidienne batch entre les receipts Royaume et les tickets Cash
 - `computeConfidence()` — Score de confiance (70% proximité temporelle + 30% unicité candidat)
 
 Voir la section « Réconciliation Cashpad » du CLAUDE.md workspace pour le détail des règles de matching.
+
+### send-email-reports
+
+Envoie les **rapports e-mail automatisés** (migrations 076/077/078) à leurs destinataires internes, via **Resend**. Les chiffres ne sont pas calculés ici : ils viennent de la RPC `get_email_report_payload`. La fonction résout quoi envoyer, rend le HTML et poste.
+
+- **Entrypoint** : `supabase/functions/send-email-reports/index.ts` (+ `templates.ts` pour le rendu)
+- **Tables cibles** : `email_reports`, `email_report_recipients`, `email_report_runs`
+- **Déclenchement** : cron `email-reports-dispatch` (07:00 UTC quotidien) ou appel depuis la page admin `/reports`
+
+#### Modes (corps de la requête)
+
+| Corps | Effet |
+|---|---|
+| `{}` | Passage cron : tous les rapports actifs dont la période écoulée n'a pas encore été envoyée |
+| `{ "report_key": "..." }` | Envoi manuel d'un rapport, période écoulée par défaut |
+| `{ "report_key": "...", "period_identifier": "2026-07" }` | Renvoi d'une période passée |
+| `{ "report_key": "...", "preview": true }` | Rend le HTML **sans rien envoyer** (prévisualisation admin) |
+| `{ "report_key": "...", "test_email": "..." }` | Envoi de test à une seule adresse ; **ne consomme pas la période** (`last_period_sent` inchangé) |
+
+#### Idempotence
+
+Le cron passe **tous les jours** ; la période visée ne change qu'au changement de semaine ou de mois. Un rapport dont `last_period_sent` vaut déjà la période cible est `skipped`. Corollaire utile : un passage en échec est **rattrapé le lendemain**, au lieu d'attendre une semaine ou un mois. Un envoi manuel, lui, est un acte volontaire et peut renvoyer la même période.
+
+#### Auth
+
+`verify_jwt` doit être **désactivé** sur cette fonction, comme pour les fonctions Cashpad : les clés `sb_secret_…` ne sont pas des JWT et seraient rejetées par le gateway. La validation est faite intégralement dans le code, qui accepte :
+
+1. la secret key Supabase (`EMAIL_REPORTS_SERVICE_KEY`, sinon `RECONCILE_SERVICE_KEY`, sinon `SUPABASE_SERVICE_ROLE_KEY`) : appel du cron ;
+2. un JWT d'utilisateur dont `profiles.role = 'admin'` : appel depuis la page `/reports`.
+
+#### Secrets requis
+
+| Secret | Rôle |
+|---|---|
+| `RESEND_API_KEY` | Clé API Resend. Sans elle, la fonction répond `error` sans rien envoyer. |
+| `EMAIL_REPORTS_FROM` | Expéditeur, en prod `Royaume des Paraiges <no-reply@mail-royaume.auxparaiges.fr>`. Le domaine doit être vérifié chez Resend (SPF/DKIM). |
+| `EMAIL_REPORTS_REPLY_TO` | Adresse de réponse (optionnel) |
+| `EMAIL_REPORTS_SERVICE_KEY` | Bearer attendu du cron (optionnel, fallback sur `reconcile_service_key`) |
+
+#### Rendu
+
+Les gabarits (`templates.ts`) reprennent le **design du dashboard admin** (shadcn/ui, thème clair) : cartes de chiffres à bord 1px et radius 8px, tableaux sans zébrures, typographie sans-serif, variations en émeraude/rouge. Les couleurs sont la conversion en hex des tokens `:root` de `src/app/globals.css` côté admin ; si la palette du dashboard bouge, la reporter dans `templates.ts`.
+
+Contraintes de rendu e-mail : mise en page en `<table>`, styles inline uniquement, thème clair figé (un e-mail ne suit pas le dark mode), et aucune ressource externe. Chaque rapport est envoyé en HTML **et** en texte brut.
+
+#### Envoi
+
+Un e-mail **par destinataire** (et non un envoi groupé) pour tracer les échecs adresse par adresse, espacés de 550 ms pour rester sous la limite Resend de 2 requêtes/seconde. Budget de 120 s avant de renvoyer un résumé partiel. Chaque tentative est journalisée dans `email_report_runs`, avec un snapshot du payload.
