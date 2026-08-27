@@ -65,7 +65,9 @@ Voir la section « Réconciliation Cashpad » du CLAUDE.md workspace pour le dé
 
 ### send-email-reports
 
-Envoie les **rapports e-mail automatisés** (migrations 076/077/078) à leurs destinataires internes, via **Resend**. Les chiffres ne sont pas calculés ici : ils viennent de la RPC `get_email_report_payload`. La fonction résout quoi envoyer, rend le HTML et poste.
+Envoie les **rapports e-mail automatisés** (migrations 076/077/078, étendues par 079/080) à leurs destinataires internes, via **Resend**. Les chiffres ne sont pas calculés ici : ils viennent de la RPC `get_email_report_payload`. La fonction résout quoi envoyer, rend le HTML et poste.
+
+Trois gabarits de rendu dans `templates.ts`, un par `report_type` : `activity_summary`, `leaderboard`, `new_quests` (défis de la période). Ajouter un type de rapport sans ajouter sa branche dans `renderReport()` fait échouer l'envoi avec « Type de rapport non géré ».
 
 - **Entrypoint** : `supabase/functions/send-email-reports/index.ts` (+ `templates.ts` pour le rendu)
 - **Tables cibles** : `email_reports`, `email_report_recipients`, `email_report_runs`
@@ -75,15 +77,17 @@ Envoie les **rapports e-mail automatisés** (migrations 076/077/078) à leurs de
 
 | Corps | Effet |
 |---|---|
-| `{}` | Passage cron : tous les rapports actifs dont la période écoulée n'a pas encore été envoyée |
-| `{ "report_key": "..." }` | Envoi manuel d'un rapport, période écoulée par défaut |
+| `{}` | Passage cron : tous les rapports actifs dont la période visée n'a pas encore été envoyée |
+| `{ "report_key": "..." }` | Envoi manuel d'un rapport, période visée par défaut |
 | `{ "report_key": "...", "period_identifier": "2026-07" }` | Renvoi d'une période passée |
 | `{ "report_key": "...", "preview": true }` | Rend le HTML **sans rien envoyer** (prévisualisation admin) |
 | `{ "report_key": "...", "test_email": "..." }` | Envoi de test à une seule adresse ; **ne consomme pas la période** (`last_period_sent` inchangé) |
 
 #### Idempotence
 
-Le cron passe **tous les jours** ; la période visée ne change qu'au changement de semaine ou de mois. Un rapport dont `last_period_sent` vaut déjà la période cible est `skipped`. Corollaire utile : un passage en échec est **rattrapé le lendemain**, au lieu d'attendre une semaine ou un mois. Un envoi manuel, lui, est un acte volontaire et peut renvoyer la même période.
+La période visée d'un rapport dépend de sa **portée** (`email_reports.period_scope`, migration 079) : période écoulée pour un bilan, période en cours pour une annonce (« les défis de la semaine »). C'est la RPC qui tranche — la fonction ne fait que comparer la période obtenue à `last_period_sent`.
+
+Le cron passe **tous les jours** ; la période visée ne change qu'au changement de semaine ou de mois, et ce dans les deux portées : un rapport `current` bascule le lundi matin comme un rapport `previous`. Un rapport dont `last_period_sent` vaut déjà la période cible est `skipped`. Corollaire utile : un passage en échec est **rattrapé le lendemain**, au lieu d'attendre une semaine ou un mois. Un envoi manuel, lui, est un acte volontaire et peut renvoyer la même période.
 
 #### Auth
 

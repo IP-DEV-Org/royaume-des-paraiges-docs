@@ -1,6 +1,6 @@
 # Tables : rapports e-mail automatisés
 
-Trio de tables introduit par la **migration 076** (août 2026) : configuration, destinataires et journal des envois de rapports chiffrés récurrents. Piloté depuis la page `/reports` du dashboard admin, exécuté par l'Edge Function [`send-email-reports`](../edge-functions/README.md) et le cron `email-reports-dispatch` (migration 078).
+Trio de tables introduit par la **migration 076** (août 2026), étendu par la **migration 079** (portée de période + rapports de défis) : configuration, destinataires et journal des envois de rapports récurrents. Piloté depuis la page `/reports` du dashboard admin, exécuté par l'Edge Function [`send-email-reports`](../edge-functions/README.md) et le cron `email-reports-dispatch` (migration 078).
 
 > ⚠️ **Reporting interne uniquement.** Les destinataires sont des adresses e-mail libres (équipe, gérants), **sans lien avec `auth.users`**. À ce titre, aucun consentement ni lien de désinscription n'est nécessaire. Y mettre des adresses de **clients de l'app** changerait la nature du traitement : cela imposerait un opt-in, un lien de désinscription et une mise à jour de la Politique de confidentialité et des CGU. Ne pas détourner ces tables pour cela.
 
@@ -12,13 +12,24 @@ email_reports (1) ──< email_report_recipients (N)
       └──< email_report_runs (N)
 ```
 
-Trois rapports sont livrés en seed, tous **inactifs** par défaut :
+Cinq rapports sont livrés en seed, tous **inactifs** par défaut :
 
-| `key` | `report_type` | `period_type` | Contenu |
-|---|---|---|---|
-| `monthly_activity` | `activity_summary` | `monthly` | CA, tickets, panier moyen, répartition par établissement, inscrits, joueurs actifs, montées de niveau, répartition par rang |
-| `weekly_leaderboard` | `leaderboard` | `weekly` | Podium, top N, participants, XP distribué |
-| `monthly_leaderboard` | `leaderboard` | `monthly` | Idem, sur le mois |
+| `key` | `report_type` | `period_type` | `period_scope` | Contenu |
+|---|---|---|---|---|
+| `monthly_activity` | `activity_summary` | `monthly` | `previous` | CA, tickets, panier moyen, répartition par établissement, inscrits, joueurs actifs, montées de niveau, répartition par rang |
+| `weekly_leaderboard` | `leaderboard` | `weekly` | `previous` | Podium, top N, participants, XP distribué |
+| `monthly_leaderboard` | `leaderboard` | `monthly` | `previous` | Idem, sur le mois |
+| `weekly_new_quests` | `new_quests` | `weekly` | `current` | Défis hebdomadaires qui s'ouvrent le lundi : nouveautés, défis reconduits, objectifs, récompenses, établissements concernés |
+| `monthly_new_quests` | `new_quests` | `monthly` | `current` | Idem, sur les défis mensuels, le 1er du mois |
+
+### Rythme d'envoi ≠ période couverte
+
+Deux notions distinctes depuis la migration 079, longtemps confondues parce que les trois premiers rapports étaient tous des bilans :
+
+- **`period_type`** donne le **rythme** : le cron quotidien fait partir un rapport hebdomadaire le lundi, un mensuel le 1er ;
+- **`period_scope`** donne la **période couverte** : `previous` = la période écoulée (un bilan sur une période en cours donnerait des chiffres partiels), `current` = la période qui s'ouvre (une annonce ne sert à rien une fois la semaine finie).
+
+L'idempotence ne change pas d'un cas à l'autre : dans les deux cas la période cible bascule au changement de semaine ou de mois, et `last_period_sent` empêche le doublon.
 
 Ajouter un rapport = une ligne ici + un builder SQL dans [`get_email_report_payload`](../functions/get_email_report_payload.md) + un gabarit de rendu dans l'Edge Function.
 
@@ -28,8 +39,9 @@ Ajouter un rapport = une ligne ici + un builder SQL dans [`get_email_report_payl
 |---|---|---|---|---|
 | `id` | `uuid` | Non | `gen_random_uuid()` | PK |
 | `key` | `text` | Non | - | Identifiant stable, UNIQUE, CHECK `^[a-z0-9_]+$`. Consommé par l'Edge Function et l'URL `/reports/[key]`. Ne pas renommer une clé déjà référencée. |
-| `report_type` | `text` | Non | - | CHECK `activity_summary` / `leaderboard`. Détermine le builder SQL et le gabarit HTML. |
-| `period_type` | `text` | Non | - | CHECK `weekly` / `monthly`. Le rapport porte **toujours sur la période écoulée**, jamais sur la période en cours. |
+| `report_type` | `text` | Non | - | CHECK `activity_summary` / `leaderboard` / `new_quests` (migration 079). Détermine le builder SQL et le gabarit HTML. |
+| `period_type` | `text` | Non | - | CHECK `weekly` / `monthly`. **Rythme d'envoi** : lundi ou 1er du mois. |
+| `period_scope` | `text` | Non | `'previous'` | CHECK `previous` / `current` (migration 079). **Période couverte** : bilan de la période écoulée, ou annonce de la période qui s'ouvre. |
 | `name` | `text` | Non | - | Titre affiché dans l'admin et en tête de l'e-mail. |
 | `description` | `text` | Oui | - | Résumé affiché sur la carte de la page `/reports`. |
 | `subject_template` | `text` | Non | - | Objet de l'e-mail. `{{period_label}}` est remplacé par le libellé humain de la période. |
@@ -42,7 +54,8 @@ Ajouter un rapport = une ligne ici + un builder SQL dans [`get_email_report_payl
 ### Triggers
 
 - **`trg_email_reports_updated_at`** (BEFORE UPDATE) : `set_updated_at()`.
-- **`trg_email_report_activation`** (BEFORE UPDATE OF `is_active`) : à la transition `false → true`, positionne `last_period_sent` sur la période écoulée via `get_previous_period_identifier()`. **Activer un rapport n'envoie donc jamais rétroactivement** la période déjà close ; pour l'envoyer quand même, utiliser « Envoyer maintenant ».
+- **`trg_email_report_activation`** (BEFORE UPDATE OF `is_active`) : à la transition `false → true`, positionne `last_period_sent` sur **la période que le rapport vise**, selon `period_scope` — période écoulée (`get_previous_period_identifier()`) ou période en cours (`get_period_identifier()`). **Activer un rapport ne déclenche donc jamais d'envoi dans la foulée** : le premier part au prochain changement de période. Pour ne pas attendre, utiliser « Envoyer maintenant ».
+  > Sans la prise en compte de `period_scope` (migration 079), activer un rapport `current` un mercredi l'aurait fait partir au passage du cron le lendemain matin, en plein milieu de semaine.
 
 ## `email_report_recipients`
 
