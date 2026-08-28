@@ -70,7 +70,7 @@ Une ligne par utilisateur dans le top N (+ une ligne supplémentaire pour `auth.
 - **Pas d'UUID** : `customer_id` n'est jamais exposé. Le client identifie sa propre ligne via `is_me = true`.
 - **Pas d'écriture** : contrairement à `distribute_period_rewards_v2` (mode non-preview), aucune ligne n'est insérée dans `coupon_distribution_logs` / `period_reward_configs` / `coupons` / `gains` / `user_badges`.
 - **Cohérence avec la grille de récompenses** : tant que les tiers en `reward_tiers` ne sont pas modifiés mid-période, l'utilisateur voit la projection réelle de ce qu'il toucherait à la clôture.
-- **Limitation** : même bug que `distribute_period_rewards_v2` — la vue matérialisée `*_xp_leaderboard` ne contient que la période courante, donc le preview d'une période passée renvoie en réalité le classement courant. Acceptable pour le front (qui n'expose que la période courante côté UX).
+- **Limitation (toujours ouverte)** : `p_period_identifier` n'est pas honoré — la fonction lit la vue matérialisée `*_xp_leaderboard`, qui ne contient que la période courante, donc le preview d'une période passée renvoie en réalité le classement courant. `distribute_period_rewards_v2` a été corrigée sur ce point par la migration 081 ; **celle-ci ne l'a pas été** (projection en lecture seule, aucun appelant dans les 4 projets). Reste acceptable pour le front, qui n'expose que la période courante côté UX.
 
 ## Voir aussi
 

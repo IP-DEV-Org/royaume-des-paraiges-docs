@@ -2,6 +2,8 @@
 
 Distribue automatiquement les récompenses aux TOP 10 du leaderboard.
 
+> ⚠️ **Legacy — remplacée par [`distribute_period_rewards_v2`](./distribute_period_rewards_v2.md).** Barèmes en dur dans le corps de la fonction, `service_role` uniquement, appelée par aucun cron ni aucun des 4 projets applicatifs. Elle porte toujours le défaut corrigé par la migration 081 sur la v2 : elle lit les vues matérialisées `*_xp_leaderboard` (câblées sur `now()`) et résout sa période avec `get_period_identifier()`, donc un appel juste après une bascule de période travaille sur un classement vide. Ne pas l'appeler ; à supprimer ou à corriger séparément.
+
 ## Signature
 
 ```sql

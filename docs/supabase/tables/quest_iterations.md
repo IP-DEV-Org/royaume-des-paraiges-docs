@@ -8,6 +8,7 @@ Sémantique :
 - **Le nombre de lignes borne le plafond de complétions** (migration 069) : `plafond effectif = LEAST(plafond du rang, 1 + nb de lignes)`. Une quête `is_repeatable` sans aucune ligne = 1 seule complétion ; pour ouvrir N complétions, l'admin ajoute N−1 itérations. Le front applique la même borne (`buildQuestWithProgress`).
 - **Chaque champ NULL hérite de la quête de base** (granularité par champ : on peut surcharger seulement l'objectif, seulement le bonus XP, etc.).
 - Une itération **sans ligne** hérite intégralement de la base.
+- **Les lignes survivent à une désactivation de la répétition** : elles ne sont supprimées que si l'admin retire explicitement le rang dans le formulaire. Une ligne orpheline sur une quête non répétable est sans effet.
 - Limitation assumée : impossible d'exprimer « pas de coupon à l'itération k alors que la base en a un » (NULL = héritage). Les bonus XP/PdB, eux, peuvent être explicitement mis à `0`.
 
 ## Colonnes
@@ -37,5 +38,5 @@ Sémantique :
 ## Consommateurs
 
 - **Trigger `distribute_quest_rewards`** (via `get_quest_iteration_target()` + lecture directe) : résolution de l'objectif et des gains de chaque itération à la distribution.
-- **Admin** : section « Itérations supplémentaires » du formulaire de quête (`/quests/create`, `/quests/[id]`), persistée par `setQuestIterations()` (pattern DELETE + INSERT).
+- **Admin** : section « Répétition selon le niveau » du formulaire de quête (`/quests/create`, `/quests/[id]`), persistée par `setQuestIterations()` (pattern DELETE + INSERT). Les lignes sont écrites **quelle que soit la valeur de `is_repeatable`** (août 2026) : l'admin peut préparer le barème sans activer la répétition, et l'interrupteur d'activation ne détruit jamais la configuration. Des lignes présentes sur une quête `is_repeatable = false` sont **inertes** — `distribute_quest_rewards` borne alors à 1 complétion, `build_report_new_quests` renvoie `max_completions = 1`, et le front applique la même règle.
 - **Front Expo** : jointure dans les selects de `QuestService` pour calculer les seuils cumulés et afficher les gains de l'itération courante.

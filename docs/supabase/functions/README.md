@@ -42,6 +42,7 @@ Cette section documente toutes les fonctions PostgreSQL disponibles dans le sche
 | `get_period_preview` | p_period_type character varying, p_period_identifier character varying DEFAULT NULL::character varying | `jsonb` | VOLATILE | Oui |
 | `get_period_preview_public` | p_period_type character varying, p_period_identifier character varying, p_top_n integer DEFAULT 20 | `TABLE(rank bigint, username text, avatar_url text, current_xp bigint, projected_reward_amount integer, projected_reward_type text, is_me boolean)` | VOLATILE | Oui |
 | `get_period_rank` | p_period_type character varying, p_period_identifier character varying, p_customer_id uuid | `TABLE(rank bigint, total_xp bigint)` | STABLE | Oui |
+| `get_previous_period_identifier` | p_period_type character varying | `character varying` | STABLE | Non |
 | `get_user_badges` | p_customer_id uuid | `TABLE(badge_id integer, slug character varying, name character varying, description text, icon character varying, rarity character varying, category character varying, earned_at timestamp with time zone, period_type character varying, period_identifier character varying, rank integer)` | VOLATILE | Non |
 | `get_user_cashback_balance` | p_customer_id uuid | `jsonb` | STABLE | Non |
 | `get_user_complete_stats` | p_customer_id uuid | `jsonb` | STABLE | Non |

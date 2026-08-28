@@ -21,7 +21,7 @@ SET search_path = public
 | Parametre | Type | Requis | Default | Description |
 |-----------|------|--------|---------|-------------|
 | `p_period_type` | `VARCHAR` | Oui | - | `'weekly'` / `'monthly'` / `'yearly'` |
-| `p_period_identifier` | `VARCHAR` | Non | `NULL` | Identifiant de période (ex: `2026-W21`). Si `NULL`, période courante. Même bug que `distribute_period_rewards_v2` : le `period_identifier` n'est pas réellement utilisé pour scoper la lecture du leaderboard (la MV ne contient que la période courante). |
+| `p_period_identifier` | `VARCHAR` | Non | `NULL` | Identifiant de période (ex: `2026-W21`). Si `NULL`, **période close**. Depuis la migration 081 le paramètre est réellement honoré : le wrapper hérite du correctif de `distribute_period_rewards_v2` (lecture via `get_period_leaderboard`), donc la prévisualisation d'une période passée renvoie bien le classement de cette période. |
 
 ## Retour
 

@@ -100,8 +100,8 @@ docs/docs/supabase/
 | `create_spending_from_cashback_payment` | - | trigger | Trigger: cree spending sur paiement cashback |
 | `create_weekly_coupon` | p_customer_id | json | Cree un coupon 3,90€ pour 50€+ depenses/semaine |
 | `distribute_all_quest_rewards` | p_admin_id | json | Distribue les recompenses pour toutes les quetes completees |
-| `distribute_leaderboard_rewards` | p_period_type, p_force | json | Distribue les recompenses aux TOP 10 du leaderboard |
-| `distribute_period_rewards_v2` | p_period_type, p_period_identifier, p_preview_only, p_force | jsonb | Distribue les recompenses leaderboard avec tiers configurables. Admin only (migration 040, audit trail via `auth.uid()`). |
+| `distribute_leaderboard_rewards` | p_period_type, p_force | json | **Legacy, ne pas appeler** : barèmes en dur, lit les vues materialisees et ignore la periode (defaut corrige sur la v2 par la migration 081). Aucun appelant. |
+| `distribute_period_rewards_v2` | p_period_type, p_period_identifier, p_preview_only, p_force | jsonb | Distribue les recompenses leaderboard avec tiers configurables. Admin only (migration 040, audit trail via `auth.uid()`). Depuis la migration 081 : classement lu via `get_period_leaderboard` (et non plus les vues materialisees), periode par defaut = periode **close**. |
 | `distribute_quest_reward` | p_quest_progress_id | json | Distribue les recompenses pour une quete completee. Admin only (migration 040, audit trail via `auth.uid()`). |
 | `distribute_quest_rewards` | - | trigger | Trigger: distribue recompenses quand quete completee |
 | `expire_quest_progress` | - | json | Expire les quest_progress dont la periode est terminee |
@@ -138,16 +138,16 @@ docs/docs/supabase/
 
 | Job | Schedule | Commande | Description |
 |-----|----------|----------|-------------|
-| 1 | `5 0 * * 1` | `SELECT distribute_period_rewards_v2('weekly')` | Lundi 00:05 - Distribution hebdomadaire |
-| 2 | `10 0 1 * *` | `SELECT distribute_period_rewards_v2('monthly')` | 1er du mois 00:10 - Distribution mensuelle |
-| 3 | `15 0 1 1 *` | `SELECT distribute_period_rewards_v2('yearly')` | 1er janvier 00:15 - Distribution annuelle |
+| 1 | `5 0 * * 1` | `SELECT distribute_period_rewards_v2('weekly')` | Lundi 00:05 - Distribution de la **semaine close** (migration 081 : sans identifiant, la RPC vise la periode precedente, pas celle qui vient de s'ouvrir) |
+| 2 | `10 0 1 * *` | `SELECT distribute_period_rewards_v2('monthly')` | 1er du mois 00:10 - Distribution du **mois clos** |
+| 3 | `15 0 1 1 *` | `SELECT distribute_period_rewards_v2('yearly')` | 1er janvier 00:15 - Distribution de l'**annee close** |
 | 6 | `0 0 * * *` | `SELECT expire_quest_progress()` | Tous les jours a minuit - Expiration quetes non completees |
 
 ### Vues Materialisees (4)
 
 | Vue | Description |
 |-----|-------------|
-| `weekly_xp_leaderboard` | Leaderboard hebdomadaire (lundi-dimanche) |
+| `weekly_xp_leaderboard` | Leaderboard hebdomadaire (lundi-dimanche). ⚠️ Periode **cablee sur `now()`** au moment du `REFRESH` : utilisable pour le classement temps reel (`get_current_xp_leaderboard`, `get_current_xp_rank`, `create_receipt`), jamais pour une periode close - utiliser `get_period_leaderboard`. |
 | `monthly_xp_leaderboard` | Leaderboard mensuel (1er au dernier jour du mois) |
 | `yearly_xp_leaderboard` | Leaderboard annuel (1er janvier au 31 decembre) |
 | `user_stats` | Vue materialisee combinant les statistiques XP et cashback par utilisateur |

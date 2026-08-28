@@ -2,7 +2,7 @@
 
 ## Vue d'ensemble
 
-Le projet utilise **2 buckets** Supabase Storage pour stocker les fichiers.
+Le projet utilise **4 buckets** Supabase Storage pour stocker les fichiers.
 
 ## Buckets
 
@@ -305,6 +305,30 @@ SELECT cron.schedule(
   $$
 );
 ```
+
+### report-videos
+
+| Propriété | Valeur |
+|-----------|--------|
+| **ID** | `report-videos` |
+| **Public** | ❌ **Non** |
+| **Limite de taille** | 15 Mo |
+| **Types MIME autorisés** | `video/mp4` |
+| **Créé le** | 2026-08-28 (migration 082) |
+
+Vidéos de classement jointes aux rapports e-mail et réutilisées sur les réseaux sociaux.
+
+**Chemin** : `<report_key>/<period_identifier>.mp4`, ex. `weekly_leaderboard/2026-W35.mp4`.
+
+**Privé** parce que les vidéos portent pseudonymes et avatars. Trois accès :
+
+- le **renderer** écrit via une URL d'upload signée (`createSignedUploadUrl`, `upsert`) - la VM de rendu ne reçoit jamais la clé `service_role` ;
+- l'**Edge Function** `send-email-reports` lit en `service_role` pour attacher le MP4 en base64 ;
+- l'**admin** lit par URL signée pour l'aperçu (policy `Admins can read report videos`).
+
+Le plafond de 15 Mo est un garde-fou : la pièce jointe vise 8 Mo, et Gmail refuse au-delà de 25 Mo en entrée. Un rendu trop lourd doit échouer ici plutôt que de produire un e-mail rejeté par le destinataire.
+
+**Purgé à 7 jours** par [`purge_expired_report_videos`](../functions/purge_expired_report_videos.md) : Supabase Storage n'a pas de règle de cycle de vie native.
 
 ---
 
