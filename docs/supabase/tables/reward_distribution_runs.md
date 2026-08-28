@@ -32,11 +32,30 @@ C'est ce trou d'observabilité qui a laissé **onze distributions vides** passer
 | `period_start` / `period_end` | `TIMESTAMPTZ` | Bornes issues de `get_period_bounds`. |
 | `forced` | `BOOLEAN` | `p_force` de l'appel. |
 | `triggered_by` | `UUID` | `auth.uid()`, FK `profiles` `ON DELETE SET NULL`. |
+| `alerted_at` | `TIMESTAMPTZ` | Envoi de l'alerte e-mail. `NULL` = pas encore signalée, ou ne relève pas d'une alerte. Porte l'idempotence du cron `reward-distribution-alerts` (migration 088). |
 | `created_at` | `TIMESTAMPTZ` | |
 
 ## Sécurité
 
 RLS activée. **Lecture** : admin uniquement (`profiles.role = 'admin'`). **Aucune policy d'écriture** : seule la RPC `SECURITY DEFINER`, propriétaire de la table, alimente le journal.
+
+## Alerte e-mail (migration 088)
+
+Un journal ne sert que si quelqu'un le regarde : le défaut de la 081 a vécu quatre mois faute de raison d'aller voir. La 088 pousse donc l'information au lieu d'attendre qu'on vienne la chercher.
+
+**Déclenchent une alerte** : `status IN ('error','partial')`, et `status = 'skipped'` avec `reason` dans `empty_leaderboard` / `no_active_tiers` / `no_matching_tier`. **N'alertent pas** : `success`, et `skipped / already_distributed` (relance bénigne).
+
+**Chaîne** : cron horaire `reward-distribution-alerts` → `net.http_post` → fonction Edge `send-reward-alert` → RPC [`get_reward_distribution_alerts`](../functions/get_reward_distribution_alerts.md) → Resend → `mark_reward_distribution_alerts_sent`.
+
+**Destinataires** : `admin_settings.reward_alert_recipients` (JSONB, défaut `["direction@ipdev.lu"]`) — modifiable sans redéploiement.
+
+Trois choix de conception à connaître :
+
+- **Fonction Edge dédiée plutôt que `send-email-reports`.** La clé Resend n'existe que comme secret de fonction Edge (le Vault ne porte que `reconcile_service_key`), donc pg_net ne peut pas appeler Resend depuis un cron SQL. Et le modèle de `email_reports` est périodique (`period_type` + `last_period_sent`), ce qui ne convient pas à une alerte : on veut être prévenu quand ça arrive, pas au prochain lundi.
+- **Cron horaire et non quotidien.** Les distributions tombent à 00:05 / 00:10 / 00:15 UTC, mais une relance manuelle depuis l'admin peut échouer à n'importe quelle heure. Sans alerte en attente, la fonction rend la main sans appeler Resend.
+- **Acquittement après envoi seulement.** Si Resend échoue, `alerted_at` reste `NULL` et les lignes repartent à l'heure suivante.
+
+⚠️ `verify_jwt` doit rester **désactivé** sur `send-reward-alert`, comme sur les autres fonctions appelées par cron : les clés `sb_secret_…` ne sont pas des JWT et le gateway les rejette. L'auth est validée dans le code.
 
 ## À surveiller
 
