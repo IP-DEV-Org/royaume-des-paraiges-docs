@@ -55,7 +55,11 @@ La vue est en **`security_definer`** (le défaut Postgres) et non `security_invo
 
 C'est une **exception délibérée**. Ces migrations avaient forcé `security_invoker` sur des vues qui exposaient par ricochet des données d'administration. Ici, l'exposition est le but : les tables `menu_*` sont fermées au public, et cette vue est le seul point par lequel la disponibilité des bières reste lisible par le front et le dashboard, comme elle l'était avant. Son périmètre tient en une clause auditable, et elle n'expose que les cinq colonnes que la table exposait déjà.
 
-`GRANT SELECT` à `anon`, `authenticated`, `service_role`.
+`GRANT SELECT` à `anon`, `authenticated`, `service_role`, **et rien d'autre** (migration 098).
+
+> ⚠️ **Piège à connaître pour toute vue `security_definer` future.** La 096 accordait `SELECT` explicitement, mais Supabase pose des privilèges par défaut sur le schéma `public` qui donnent **tout** à `anon` et `authenticated` sur chaque nouvel objet : le `GRANT` s'y ajoutait au lieu de les restreindre. Or une vue simple sur une seule table est **auto-modifiable** par Postgres, et celle-ci contourne la RLS. Un `DELETE FROM beers_establishments WHERE id = X` émis avec la clé anon publique supprimait donc une ligne de `menu_items`. Corrigé par la **098** : `REVOKE ALL` puis `GRANT SELECT`. Vérifié par l'API REST, `DELETE` et `UPDATE` renvoient désormais `42501`.
+>
+> La règle : sur une vue `security_definer`, **révoquer avant d'accorder**. Un `GRANT` seul ne restreint rien.
 
 ## Exemples de requêtes
 
