@@ -9,6 +9,23 @@ RPC introduites par la migration **046 (01/06/2026)** pour la refonte de la page
 > Migration **055 (04/06/2026)** : ajout de `euro_cashpad_other_cents` (paiements Cashpad hors Royaume) → ligne « Euros Cashpad » en tête de tableau. `DROP`/`CREATE`, droits réappliqués à l'identique.
 >
 > Migration **056 (04/06/2026)** : **comparaison Cashpad rendue optionnelle (perf)**. Nouveau 4ᵉ paramètre `p_include_cashpad boolean DEFAULT false`. L'agrégation des colonnes « selon Cashpad » (`euro_cashpad_*`, `pdb_cashpad_cents`) parcourait tout `cashpad_receipts_snapshot` (~454 MB, JSONB) à chaque appel (~2,4 s). Désormais : **off** (défaut) → CTE `cashpad_pm` court-circuitée (snapshot **jamais lu**), ces 3 colonnes renvoient `NULL` → ~50 ms ; **on** → agrégation réécrite en `CROSS JOIN LATERAL` par clôture (exploite `idx_crs_establishment_closed`, ~0,25 s à chaud). `DROP` de la 3-arg + `CREATE` de la 4-arg, droits réappliqués à l'identique.
+>
+> Migration **091 (07/09/2026)** : **index manquants** sur trois clés étrangères, sans changement de la RPC. Les deux `LEFT JOIN LATERAL` (lignes de paiement, gains organiques) étaient rejoués en **Seq Scan complet une fois par receipt** : sur une année (6 774 receipts) la RPC mettait **9,4 s**, au-delà du `statement_timeout` de **8 s** du rôle `authenticated` — l'export annuel de `/analytics` échouait en `57014` alors que l'affichage mois par mois passait. Ajout de `idx_receipt_lines_receipt_id`, `idx_gains_receipt_id` et `idx_receipts_customer_created (customer_id, created_at DESC)` (ce dernier pour le sous-select `quest_attr`). Mesure sur 2026, Cashpad off : **9 440 ms → 274 ms**. Cashpad on, un mois : ~4,3 s → ~0,74 s.
+>
+> Migrations **092 + 093 (07/09/2026)** : **matérialisation des totaux par mode de paiement**. La CTE `cashpad_pm` n'expanse plus le JSONB : elle somme trois colonnes `payments_euro_cents` / `payments_pdb_cents` / `payments_other_cents` posées sur `cashpad_receipts_snapshot` et remplies par le trigger `trg_cashpad_payment_totals` (092), servies par l'index couvrant partiel `idx_crs_payment_totals`. La règle de classement des modes de paiement est déplacée telle quelle dans `public.cashpad_payment_totals(jsonb)` — **équivalence vérifiée sur les 289 457 lignes : 0 divergence**, et empreinte MD5 de la sortie de la RPC identique avant/après sur mai→août 2026. Une **année complète avec comparaison Cashpad passe de ~44 s à ~0,41 s**, ce qui rend l'export annuel possible avec les colonnes Cashpad. Signature inchangée, `CREATE OR REPLACE` (droits conservés).
+
+## Coût de la comparaison Cashpad
+
+Les chiffres de la migration 056 (~0,25 s à chaud) **avaient vieilli avec la table** : `cashpad_receipts_snapshot` pèse 570 Mo / 289 000 lignes, et l'agrégation re-extrayait `payments[]` du JSONB `raw_payload` de chaque ticket **à chaque appel** — 41 s sur une année, donc un export annuel impossible sous le `statement_timeout` de 8 s.
+
+Les migrations **092/093** ont supprimé ce coût en matérialisant les trois totaux sur la ligne du ticket (cf. `tables/cashpad_receipts_snapshot.md`). État actuel :
+
+| Plage | Cashpad off | Cashpad on |
+|-------|-------------|------------|
+| 1 mois | ~30 ms | ~40 ms |
+| 1 an (1 363 clôtures, 287 k tickets) | ~0,3 s | **~0,4 s** |
+
+`p_include_cashpad` reste utile pour ce qu'il **affiche** (les lignes de comparaison), plus pour ce qu'il coûte.
 
 ## get_analytics_timeline
 
@@ -56,7 +73,7 @@ L'UI `/analytics` affiche ces colonnes en 3 blocs (séparateurs visuels), tous m
 
 **Comparaison Cashpad ↔ Royaume.** L'UI calcule deux lignes **Différence (Cashpad − Royaume)** : `euro_cashpad_cents − euro_royaume_cents` et `pdb_cashpad_cents − pdb_royaume_cents`. Vert si écart nul, ambre sinon (divergence à investiguer : paiement saisi en caisse sans scan QR correspondant, ou inversement). ⚠️ Les agrégats Cashpad sont **par clôture** (pas par receipt) ; ils n'apparaissent que si l'établissement a ≥ 1 receipt Royaume sur la journée fiscale (sinon aucune ligne dans le tableau).
 
-**Colonne « Total » + exports CSV (côté UI admin, 07/2026 — aucun changement RPC).** Le tableau `/analytics` affiche une colonne **Total** figée (somme de chaque ligne de métrique sur les journées affichées ; les lignes *Différence* ne somment que les journées avec donnée Cashpad). Deux exports CSV reprennent exactement les lignes/colonnes affichées (filtres établissements + `p_include_cashpad` de l'écran) : **« Exporter CSV »** sur la période courante (Jour/Semaine/Mois, fichier `analytics_<start>_<end>.csv`) et **« Exporter année »** via un appel dédié `get_analytics_timeline(<année>-01-01, <année>-12-31, …)` (fichier `analytics_<année>.csv`). Format : `Établissement;Métrique;Total;<journées>`, séparateur `;`, décimales à virgule, BOM (Excel fr), montants en euros sans symbole.
+**Colonne « Total » + exports CSV (côté UI admin, 07/2026 — aucun changement RPC).** Le tableau `/analytics` affiche une colonne **Total** figée (somme de chaque ligne de métrique sur les journées affichées ; les lignes *Différence* ne somment que les journées avec donnée Cashpad). Deux exports CSV : **« Exporter CSV »** reprend exactement les lignes/colonnes affichées (filtres établissements + `p_include_cashpad` de l'écran) sur la période courante (Jour/Semaine/Mois, fichier `analytics_<start>_<end>.csv`) ; **« Exporter année »** passe par un appel dédié `get_analytics_timeline(<année>-01-01, <année>-12-31, …)` (fichier `analytics_<année>.csv`), colonnes Cashpad comprises si la comparaison est active. Format : `Établissement;Métrique;Total;<journées>`, séparateur `;`, décimales à virgule, BOM (Excel fr), montants en euros sans symbole.
 
 > Les gains **hors quête sans établissement** (`bonus_cashback_leaderboard`, `bonus_cashback_manual`, `rollback_beta_correction`) ne sont **pas** affichés sur `/analytics` (décision produit 04/06/2026). Le bloc global « toutes enseignes » (et donc l'usage de `get_analytics_timeline_global` côté page) a été retiré ; la RPC `_global` reste en base mais n'est plus appelée.
 

@@ -32,6 +32,7 @@ Une ligne par `(report_id, period_identifier)`, **pas par tentative** : le compt
 | `attempts` | integer | Non | 0 | Nombre de rendus tentés sur cette période. |
 | `last_error` | text | Oui | - | Message d'erreur de la dernière tentative. |
 | `updated_at` | timestamptz | Non | now() | Maintenu par `trg_report_video_renders_updated_at`. |
+| `alerted_at` | timestamptz | Oui | - | Alerte du watchdog déjà envoyée pour cette période (migration 090). Remis à NULL par `trg_reset_report_video_alert` au passage en `ready`. |
 
 PK composite `(report_id, period_identifier)`. Index partiel `idx_rvr_status` sur les statuts actifs.
 
@@ -55,12 +56,23 @@ PK composite `(report_id, period_identifier)`. Index partiel `idx_rvr_status` su
 ## Chaîne d'exécution
 
 ```
-02:00  purge des vidéos de plus de 7 jours, puis rendu de la période qui bascule
-04:00  nouvelle tentative si status = 'error' ou ligne absente
-05:30  watchdog : alerte si toujours pas 'ready'
-       (traiter aussi 'rendering' + updated_at > 30 min comme un échec)
-07:00  send-email-reports attache la vidéo si status = 'ready'
+02:00  purge_expired_report_videos() puis request_report_video_renders()
+04:00  request_report_video_renders()          reprise des rendus en échec
+05:30  send-video-alert                        alerte si toujours pas prêt
+07:00  send-email-reports                      attache la vidéo si 'ready'
 ```
+
+Les trois premiers sont posés par les migrations **089** (rendu et reprise) et
+**090** (watchdog). `request_report_video_renders()` ne sollicite le service de
+rendu que si la période visée n'a **aucune** ligne, ou une ligne `error` sous le
+plafond de deux tentatives.
+
+⚠️ Ce filtre est load-bearing. Le service de rendu, lui, traite une ligne
+`expired` comme absente et relancerait un rendu - ce qui est juste pour une
+demande manuelle. Mais la vidéo d'un rapport **mensuel** expire au bout de
+7 jours alors que la période visée ne change qu'au 1er suivant : un appel
+inconditionnel rejouerait le rendu tous les jours pendant trois semaines, en
+créant un Sandbox à chaque fois.
 
 Si la vidéo manque à 07:00, le rapport **part quand même**, avec un encart qui explique pourquoi, et le run est marqué `partial`.
 
