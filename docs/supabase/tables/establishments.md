@@ -20,6 +20,9 @@ Etablissements partenaires.
 | `featured_image` | text | Oui | - | URL de l'image principale |
 | `logo` | text | Oui | - | URL du logo |
 | `anniversary` | date | Oui | - | Date anniversaire |
+| `slug` | text | Non | - | Identifiant d'URL de la carte publique (`/[slug]`) et cible des liens courts `redirect.auxparaiges.fr`. UNIQUE, `CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$')`. Migration **094**. |
+| `happy_hour_start` | time | Oui | - | Début du happy hour, heure locale. `NULL` = pas de happy hour. Migration **095**. |
+| `happy_hour_end` | time | Oui | - | Fin du happy hour. |
 | `created_at` | timestamptz | Oui | now() | Date de creation |
 | `updated_at` | timestamptz | Oui | now() | Date de derniere modification (auto via trigger) |
 
@@ -33,7 +36,12 @@ Etablissements partenaires.
 
 | Table | Colonne |
 |-------|---------|
-| `beers_establishments` | `establishment_id` |
+| `beers_establishments` | `establishment_id` | (vue, migration 096) |
+| `menu_categories` | `establishment_id` | |
+| `menu_items` | `establishment_id` | |
+| `menu_option_groups` | `establishment_id` | |
+| `menu_formulas` | `establishment_id` | |
+| `menu_establishment_events` | `establishment_id` | |
 | `news_establishments` | `establishment_id` |
 | `receipts` | `establishment_id` |
 | `gains` | `establishment_id` |
@@ -108,3 +116,11 @@ FROM establishments
 WHERE ST_DWithin(location, ST_MakePoint(6.175, 49.119)::geography, 1000)
 ORDER BY distance;
 ```
+
+## Slug et happy hour (migrations 094 et 095)
+
+`slug` est **dérivé du titre** à la création, via `menu_slugify(text)`. Les 7 établissements ont été backfillés : `aux-paraiges`, `le-troubadour`, `le-garage-des-paraiges`, `la-grange-des-paraiges`, `delirium-cafe-strasbourg`, `la-chapelle`, `la-ripaille`.
+
+> ⚠️ Le slug est **modifiable, mais le changer casse les QR codes déjà imprimés** qui pointent dessus, directement ou via un lien court de `/links`.
+
+`happy_hour_start` / `happy_hour_end` portent la plage d'un happy hour quotidien. Elle sert à afficher la section au bon moment sur la carte publique ; les tarifs eux-mêmes sont portés par `menu_item_variants.is_happy_hour`. Deux colonnes plutôt qu'une table : le happy hour est une plage unique et quotidienne. Le jour où il varie selon le jour de la semaine, ce sera une table, et ces colonnes s'y videront.

@@ -141,11 +141,24 @@ La base de données contient **33 tables** dans le schéma `public`. Toutes les 
 | [news](./news.md) | Actualités | - |
 | [level_thresholds](./level_thresholds.md) | Seuils de niveaux | - |
 
+### Tables de la Couche Menus (cartes)
+
+Introduites par les migrations **094 à 096 (07/09/2026)**, reprise de l'application `menu-ripaille`.
+
+| Table | Description | FK vers |
+|-------|-------------|---------|
+| [menu_items](./menu_items.md) | **Table centrale** : un produit sur la carte d'un établissement | establishments, menu_categories, menu_item_types, beers, menu_catalog_products |
+| [menu_item_variants](./menu_item_variants.md) | Formats tarifés d'un item, drapeau happy hour | menu_items |
+| [menu_catalog_products](./menu_catalog_products.md) | Catalogue partagé hors bières (les softs) | menu_item_types |
+| [menu_item_types](./menu_item_types.md) | Familles de produits, pont vers `consumption_type` | - |
+| [menu_categories](./menu_categories.md) | Regroupement éditorial, 2 niveaux | establishments, menu_categories |
+| [menu_satellites](./menu_satellites.md) | Options, formules, événements (7 tables) | establishments, menu_items |
+
 ### Tables de Liaison (Many-to-Many)
 
 | Table | Description | FK vers |
 |-------|-------------|---------|
-| [beers_establishments](./beers_establishments.md) | Bières-Établissements | beers, establishments |
+| [beers_establishments](./beers_establishments.md) | Bières-Établissements. ⚠️ **Devenue une vue sur `menu_items`** (migration 096) | beers, establishments |
 | [beers_beer_styles](./beers_beer_styles.md) | Bières-Styles | beers, beer_styles |
 | [news_establishments](./news_establishments.md) | News-Établissements | news, establishments |
 
@@ -227,4 +240,4 @@ Cela évite les problèmes de précision des nombres à virgule flottante.
 
 ## Dernière mise à jour
 
-- **Date**: 2026-02-17
+- **Date**: 2026-09-07 (couche Menus, migrations 094-096)
