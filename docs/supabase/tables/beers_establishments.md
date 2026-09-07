@@ -1,6 +1,8 @@
 # Vue: beers_establishments
 
-> ⚠️ **Ce n'est plus une table.** Depuis la migration **096 (07/09/2026)**, `beers_establishments` est une **vue** sur [menu_items](./menu_items.md). L'ancienne table est conservée sous le nom `beers_establishments_legacy`, en lecture `service_role` uniquement, le temps de valider les applications ; elle ne reçoit plus aucune écriture et se périme donc à partir de cette date.
+> ⚠️ **Ce n'est plus une table.** Depuis la migration **096 (07/09/2026)**, `beers_establishments` est une **vue** sur [menu_items](./menu_items.md). L'ancienne table, un temps conservée sous le nom `beers_establishments_legacy`, a été supprimée par la migration **101** une fois l'import des cartes validé.
+>
+> Attention au nommage : un `DROP ... CASCADE` sur `beers_establishments` emporterait la vue dont dépendent le front et le dashboard.
 
 ## Description
 
@@ -81,4 +83,4 @@ SELECT * FROM menu_items
 
 ## Statistiques
 
-- 43 liaisons reprises au backfill de la migration 096.
+- 43 liaisons reprises au backfill de la migration 096, puis **95 disponibilités** après l'import des cartes (migration 099) : le Delirium passe de 3 à 54 bières, La Ripaille de 2 à 3 avec sa bière maison Saint-Martin.
