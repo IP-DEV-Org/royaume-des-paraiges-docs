@@ -53,15 +53,19 @@ Avant la bascule, seule l'application **serveurs** écrivait (`addBeerToEstablis
 
 ## RLS
 
-La vue est en **`security_definer`** (le défaut Postgres) et non `security_invoker`, à rebours de la convention posée par les migrations `security_*`.
+La vue est en **`security_invoker`** depuis la migration **105** (08/09/2026), comme toutes les vues du projet depuis les migrations `security_*` de mai 2026 : elle lit `menu_items` avec les droits de l'appelant, et c'est la policy **`menu_items_public_beer_availability`** de [menu_items](./menu_items.md) (`SELECT` pour `authenticated`, prédicat `beer_id IS NOT NULL AND is_active`, exactement le `WHERE` de la vue) qui rend la disponibilité lisible. Le lint Supabase `security_definer_view` ne la signale plus.
 
-C'est une **exception délibérée**. Ces migrations avaient forcé `security_invoker` sur des vues qui exposaient par ricochet des données d'administration. Ici, l'exposition est le but : les tables `menu_*` sont fermées au public, et cette vue est le seul point par lequel la disponibilité des bières reste lisible par le front et le dashboard, comme elle l'était avant. Son périmètre tient en une clause auditable, et elle n'expose que les cinq colonnes que la table exposait déjà.
+`GRANT SELECT` à `authenticated` et `service_role`, **et rien d'autre**. `anon` a été retiré par la 105 : le front exige une session (le layout racine redirige vers le login) et la carte publique passe par [get_public_menu](../functions/get_public_menu.md). Aucun lecteur anonyme n'existait.
 
-`GRANT SELECT` à `anon`, `authenticated`, `service_role`, **et rien d'autre** (migration 098).
+Corollaire : un compte connecté, client compris, peut lire directement les lignes « bière active » de `menu_items`, toutes colonnes. C'est du contenu de carte déjà public sur `menus.auxparaiges.fr`, plus la notion « disponible mais hors carte » que la vue exposait déjà.
 
-> ⚠️ **Piège à connaître pour toute vue `security_definer` future.** La 096 accordait `SELECT` explicitement, mais Supabase pose des privilèges par défaut sur le schéma `public` qui donnent **tout** à `anon` et `authenticated` sur chaque nouvel objet : le `GRANT` s'y ajoutait au lieu de les restreindre. Or une vue simple sur une seule table est **auto-modifiable** par Postgres, et celle-ci contourne la RLS. Un `DELETE FROM beers_establishments WHERE id = X` émis avec la clé anon publique supprimait donc une ligne de `menu_items`. Corrigé par la **098** : `REVOKE ALL` puis `GRANT SELECT`. Vérifié par l'API REST, `DELETE` et `UPDATE` renvoient désormais `42501`.
+### Historique : l'exception `security_definer` (096 à 105)
+
+De la 096 à la 105, la vue était en `security_definer` (le défaut Postgres), à rebours de la convention du projet. Exception délibérée à l'époque : les tables `menu_*` sont fermées au public et la vue était le seul point par lequel la disponibilité restait lisible. Elle a été abandonnée parce que le lint `ERROR` qu'elle provoquait aurait fini par masquer une vraie erreur du même type. Deux leçons restent valables pour toute vue future :
+
+> ⚠️ **Piège des privilèges par défaut.** La 096 accordait `SELECT` explicitement, mais Supabase pose des privilèges par défaut sur le schéma `public` qui donnent **tout** à `anon` et `authenticated` sur chaque nouvel objet : le `GRANT` s'y ajoutait au lieu de les restreindre. Or une vue simple sur une seule table est **auto-modifiable** par Postgres, et une vue `security_definer` contourne la RLS. Un `DELETE FROM beers_establishments WHERE id = X` émis avec la clé anon publique supprimait donc une ligne de `menu_items`. Corrigé par la **098** : `REVOKE ALL` puis `GRANT SELECT`. La règle : sur une vue, **révoquer avant d'accorder**. Un `GRANT` seul ne restreint rien.
 >
-> La règle : sur une vue `security_definer`, **révoquer avant d'accorder**. Un `GRANT` seul ne restreint rien.
+> ⚠️ **Préférer `security_invoker` plus une policy dédiée** à une vue `security_definer`, même quand l'exposition est le but : le résultat est le même pour le lecteur, la RLS reste la seule autorité, et l'advisor Supabase reste vide.
 
 ## Exemples de requêtes
 

@@ -98,6 +98,7 @@ RLS active : **Oui**
 | Policy | Action | Condition |
 |---|---|---|
 | `menu_items_admin_select` | SELECT | `profiles.role = 'admin'` |
+| `menu_items_public_beer_availability` | SELECT | `beer_id IS NOT NULL AND is_active` (`authenticated`) : porte la vue [beers_establishments](./beers_establishments.md) depuis son passage en `security_invoker` (migration 105). Même prédicat que la vue, pas une ligne de plus. |
 | `menu_items_feature_insert` | INSERT | `admin_has_feature('menus')` |
 | `menu_items_feature_update` | UPDATE | `admin_has_feature('menus')` |
 | `menu_items_feature_delete` | DELETE | `admin_has_feature('menus')` |
@@ -107,6 +108,8 @@ Même patron que la migration 070 sur les quêtes : « fonctionnalité active »
 **Un gérant n'administre pas sa carte** : l'écriture est réservée au rôle `admin`. Aucune table d'appartenances n'a donc été créée, et `profiles.attached_establishment_id` n'est pas touché.
 
 `anon` n'a **aucun grant** sur cette table : la carte publique passe par [get_public_menu](../functions/get_public_menu.md).
+
+Tout compte connecté, client compris, lit en revanche les lignes « bière active » (toutes colonnes) via la policy ci-dessus : c'est du contenu de carte déjà public, plus la notion « disponible mais hors carte » que la vue exposait déjà.
 
 ## Exemples de requêtes
 
