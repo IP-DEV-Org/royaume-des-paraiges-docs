@@ -5,6 +5,7 @@ Point d'entrée **unique** de la carte publique. Introduites par la migration **
 ```sql
 get_public_menu(p_slug text) RETURNS jsonb
 get_public_menu_item(p_slug text, p_item_id bigint) RETURNS jsonb
+get_public_menu_establishments() RETURNS jsonb   -- migration 102
 ```
 
 `STABLE`, `SECURITY DEFINER`, `search_path` fixé à `public, pg_temp`. `EXECUTE` accordé à `anon`, `authenticated` et `service_role`.
@@ -60,6 +61,17 @@ Un item dont `category_id IS NULL` est **disponible mais hors carte affichée** 
 Le titre suit la source, sans surcharge possible : `COALESCE(beers.title, menu_catalog_products.title, menu_items.title)`. Le catalogue fait foi.
 
 Description, image, allergènes et précision acceptent en revanche une **surcharge locale** : `COALESCE(menu_items.<col>, <source>.<col>)`. Un établissement peut préciser sa propre description sans toucher au catalogue partagé.
+
+## `get_public_menu_establishments` (migration 102)
+
+Sert l'accueil de l'application de cartes : les établissements **ayant au moins un
+produit actif ET placé dans une catégorie**. Une bière seulement disponible
+(`category_id` nul) ne fait pas une carte, et lister un établissement sans carte
+mènerait à une page vide.
+
+Le filtre ne pouvait pas vivre côté application : les tables `menu_*` ne lui sont
+pas accessibles. Un slug absent de cette liste reste **atteignable en direct** —
+l'établissement existe, sa carte est simplement vide.
 
 ## Exemples
 
