@@ -16,7 +16,7 @@ C'est ce découpage qui rend inutile une table de surcharge. L'ancien projet en 
 
 **Tout soft entre au catalogue, même servi par un seul établissement.** Sinon le deuxième établissement qui l'ajoute demain le ressaisit à sa façon et recrée exactement la divergence que le catalogue existe pour empêcher.
 
-Le catalogue compte **21 softs** à la reprise, dont 5 seulement servis par les deux établissements.
+Le catalogue compte **21 softs** à la reprise, dont 5 seulement servis par les deux établissements, puis **25** après la carte du Garage des Paraiges (migration **104**, 08/09/2026).
 
 ## Schema
 
@@ -42,6 +42,8 @@ Quatre cas ont demandé une décision produit plutôt qu'un rapprochement automa
 | « Jus de Fruits (Orange, Pomme, Ananas, Tomate) » | Un produit à **parfums en options**, la tomate devient un produit distinct |
 | `Ice Tea` chez La Ripaille, `Fuze Tea` au Delirium | **Deux produits** : marques différentes |
 | « Carola Rouge » 33 cl et « Carola rouge » 1 L | **Fusionnés** : un produit, deux variantes de format |
+
+La carte du Garage (migration 104) applique la même règle de marque : « Gingerbeer Fever-Tree », « Iced-tea Liness », « Limonade Liness » et « Vittel » deviennent **quatre nouveaux produits** plutôt que des réemplois de `Ginger Beer`, `Ice Tea`, `Limonade` et `Eau minérale`. La marque fait partie du nom affiché, et le titre ne se surcharge pas par établissement. Un « Supplément sirop » à 0,10 € reste en revanche un item privé : ce n'est pas un soft, c'est un supplément.
 
 ## RLS
 
