@@ -62,6 +62,13 @@ Il y a donc **deux niveaux de disponibilité**, distincts et tous deux utiles :
 - `CHECK (title IS NULL OR length(btrim(title)) > 0)` — un titre blanc satisferait `num_nonnulls` en produisant un item sans nom.
 - `UNIQUE (establishment_id, beer_id) WHERE beer_id IS NOT NULL` — une bière ne peut apparaître qu'une fois par carte. **C'est cette contrainte qui force à fusionner les doublons de l'ancien projet** : « Delirium Red » et « Delirium Red 8° » sont deux lignes pour une seule bière, l'une en pression, l'autre en bouteille 75 cl. Elles deviennent un item à trois variantes.
 - `UNIQUE (establishment_id, catalog_product_id) WHERE catalog_product_id IS NOT NULL` — idem pour les softs.
+- `UNIQUE (establishment_id, category_id) WHERE is_featured AND category_id IS NOT NULL` — **un seul coup de cœur par catégorie** (migration 103). Les items hors carte sont exclus : les étoiler n'a aucun effet visible.
+
+### Poser un coup de cœur : `set_menu_item_featured(p_item_id, p_featured)`
+
+Ne pas écrire `is_featured` directement. Avec l'index seul, étoiler un produit dans une catégorie qui en a déjà un lèverait un `23505` et obligerait à désétoiler d'abord — ce n'est pas ce qu'on attend d'une étoile, on veut qu'elle se **déplace**. La fonction retire l'ancien et pose le nouveau **atomiquement**, ce que deux appels REST ne peuvent pas garantir.
+
+`SECURITY INVOKER` : la RLS de `menu_items` s'applique normalement, `admin_has_feature('menus')` compris. Aucun privilège supplémentaire n'est accordé.
 
 ### Trigger `trg_menu_items_scope`
 
