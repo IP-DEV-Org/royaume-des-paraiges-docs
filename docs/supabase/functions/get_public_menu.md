@@ -41,7 +41,8 @@ Un item dont `category_id IS NULL` est **disponible mais hors carte affichée** 
     "address": { "line_1": "...", "line_2": "...", "zipcode": "...", "city": "...", "country": "..." },
     "happy_hour": { "start": "17:00:00", "end": "20:00:00" }   // null si non configuré
   },
-  "categories": [ { "id", "parent_id", "title", "description", "position" } ],
+  "sections":   [ { "id", "title", "description" } ],                 // migration 107
+  "categories": [ { "id", "parent_id", "section_id", "title", "description", "position" } ],
   "items": [ {
     "id", "category_id", "type",          // type = menu_item_types.slug
     "title", "description", "featured_image", "allergens", "precision",
@@ -55,6 +56,10 @@ Un item dont `category_id IS NULL` est **disponible mais hors carte affichée** 
   "events":   [ { "title", "content", "featured_image", "external_url" } ]
 }
 ```
+
+## Sections (migration 107)
+
+Une [section](../tables/menu_sections.md) est un chapitre qui regroupe des catégories racines par leur `section_id`. Elle n'a pas de position : la carte la place **à l'emplacement de sa première catégorie visible**, dans l'ordre des `position` de catégories. Une section dont aucune catégorie racine n'est active n'est pas renvoyée.
 
 ## Résolution du descriptif
 

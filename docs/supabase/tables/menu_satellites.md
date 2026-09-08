@@ -2,7 +2,7 @@
 
 Sept tables secondaires de la couche « Menus », introduites par la migration **095 (07/09/2026)**. Elles sont reprises quasi telles quelles du modèle `menu-ripaille`, où elles étaient déjà correctement cloisonnées par établissement : il n'y avait rien à corriger.
 
-Regroupées ici plutôt qu'en sept fichiers parce qu'elles n'ont ni subtilité de modélisation ni piège d'exploitation. Les cinq tables centrales ont chacune leur page : [menu_items](./menu_items.md), [menu_item_variants](./menu_item_variants.md), [menu_catalog_products](./menu_catalog_products.md), [menu_item_types](./menu_item_types.md), [menu_categories](./menu_categories.md).
+Regroupées ici plutôt qu'en sept fichiers parce qu'elles n'ont ni subtilité de modélisation ni piège d'exploitation. Les cinq tables centrales ont chacune leur page : [menu_items](./menu_items.md), [menu_item_variants](./menu_item_variants.md), [menu_catalog_products](./menu_catalog_products.md), [menu_item_types](./menu_item_types.md), [menu_categories](./menu_categories.md). Les chapitres qui regroupent des catégories ont aussi la leur : [menu_sections](./menu_sections.md).
 
 Toutes ont la même RLS : lecture `role = 'admin'`, écriture soumise à `admin_has_feature('menus')`, aucun grant `anon`. Toutes celles qui portent `updated_at` ont leur trigger `set_updated_at()`.
 
