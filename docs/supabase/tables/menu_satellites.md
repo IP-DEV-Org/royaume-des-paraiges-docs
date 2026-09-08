@@ -4,7 +4,7 @@ Sept tables secondaires de la couche « Menus », introduites par la migration *
 
 Regroupées ici plutôt qu'en sept fichiers parce qu'elles n'ont ni subtilité de modélisation ni piège d'exploitation. Les cinq tables centrales ont chacune leur page : [menu_items](./menu_items.md), [menu_item_variants](./menu_item_variants.md), [menu_catalog_products](./menu_catalog_products.md), [menu_item_types](./menu_item_types.md), [menu_categories](./menu_categories.md). Les chapitres qui regroupent des catégories ont aussi la leur : [menu_sections](./menu_sections.md).
 
-Toutes ont la même RLS : lecture `role = 'admin'`, écriture soumise à `admin_has_feature('menus')`, aucun grant `anon`. Toutes celles qui portent `updated_at` ont leur trigger `set_updated_at()`.
+Toutes ont la même RLS : lecture `role = 'admin'`, aucun grant `anon`. En écriture, depuis la migration **109**, elles suivent le périmètre de [`admin_can_edit_menu`](../functions/admin_can_edit_menu.md) (un admin ne modifie que la carte de son établissement de rattachement) : `menu_option_groups`, `menu_formulas` et `menu_establishment_events` testent leur `establishment_id` (policies `*_scoped_*`) ; `menu_options` remonte à son groupe, `menu_formula_tiers` à sa formule, et `menu_item_option_groups` exige que l'item **et** le groupe soient du même admin. `menu_events`, partagée entre cartes, passe en écriture super admin (`is_super_admin()`, policies `menu_events_super_admin_*`). Toutes celles qui portent `updated_at` ont leur trigger `set_updated_at()`.
 
 ## Options
 

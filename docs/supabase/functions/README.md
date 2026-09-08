@@ -12,6 +12,7 @@ Cette section documente toutes les fonctions PostgreSQL disponibles dans le sche
 
 | Fonction | Arguments | Retour | Volatilite | Security Definer |
 |----------|-----------|--------|------------|------------------|
+| `admin_can_edit_menu` | p_establishment_id integer | `boolean` | STABLE | Oui — helper RLS des tables `menu_*` (migration 109), cf. [`admin_can_edit_menu.md`](./admin_can_edit_menu.md) |
 | `assert_admin` | - | `void` | VOLATILE | Oui |
 | `assert_admin_or_establishment_for` | p_establishment_id bigint | `void` | VOLATILE | Oui |
 | `assert_self_or_staff` | p_customer_id uuid | `void` | VOLATILE | Oui |

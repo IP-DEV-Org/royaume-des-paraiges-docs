@@ -47,4 +47,4 @@ La carte du Garage (migration 104) applique la même règle de marque : « Ginge
 
 ## RLS
 
-RLS active : **Oui**. Lecture admin, écriture soumise à `admin_has_feature('menus')`.
+RLS active : **Oui**. Lecture admin ; écriture **réservée au super admin** (`is_super_admin()`, policies `menu_catalog_products_super_admin_*`) depuis la migration **109** : un produit du catalogue s'affiche sur plusieurs cartes, le retitrer depuis un établissement modifierait celles des autres. Aucun écran admin n'y écrit à date (les produits entrent par migration).

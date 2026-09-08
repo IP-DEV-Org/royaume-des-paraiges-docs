@@ -52,4 +52,4 @@ Attention à l'asymétrie voulue : supprimer une catégorie **CASCADE** sur ses 
 
 ## RLS
 
-RLS active : **Oui**. Lecture admin, écriture soumise à `admin_has_feature('menus')`.
+RLS active : **Oui**. Lecture admin ; écriture soumise à [`admin_can_edit_menu(establishment_id)`](../functions/admin_can_edit_menu.md) depuis la migration **109** (policies `menu_categories_scoped_*`) : un admin ne modifie que la carte de son établissement de rattachement, un super admin toutes. Le `WITH CHECK` de l'UPDATE interdit de déplacer une catégorie vers un autre établissement.

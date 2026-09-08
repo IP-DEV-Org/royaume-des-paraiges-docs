@@ -55,4 +55,4 @@ Le trigger `trg_menu_items_scope` sur [menu_items](./menu_items.md) exige qu'un 
 
 ## RLS
 
-RLS active : **Oui**. Lecture admin, écriture soumise à `admin_has_feature('menus')`.
+RLS active : **Oui**. Lecture admin ; écriture **réservée au super admin** (`is_super_admin()`, policies `menu_item_types_super_admin_*`) depuis la migration **109** : référentiel partagé par toutes les cartes, une famille ne se modifie pas depuis un établissement.

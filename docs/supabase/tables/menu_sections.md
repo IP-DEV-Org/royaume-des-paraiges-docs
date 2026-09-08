@@ -44,7 +44,7 @@ La section est elle-même un accordéon, plus marqué qu'une catégorie, qui lis
 
 ## RLS
 
-RLS active : **Oui**. Même patron que les autres tables `menu_*` : lecture admin, écriture soumise à `admin_has_feature('menus')`, aucun grant `anon`.
+RLS active : **Oui**. Même patron que les autres tables `menu_*` : lecture admin, écriture soumise à [`admin_can_edit_menu(establishment_id)`](../functions/admin_can_edit_menu.md) depuis la migration **109** (policies `menu_sections_scoped_*` : un admin ne modifie que les chapitres de la carte de son établissement de rattachement), aucun grant `anon`.
 
 ## Données
 

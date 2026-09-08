@@ -143,7 +143,7 @@ La base de données contient **33 tables** dans le schéma `public`. Toutes les 
 
 ### Tables de la Couche Menus (cartes)
 
-Introduites par les migrations **094 à 096 (07/09/2026)**, reprise de l'application `menu-ripaille`.
+Introduites par les migrations **094 à 096 (07/09/2026)**, reprise de l'application `menu-ripaille`. Depuis la migration **109 (08/09/2026)**, l'écriture est bornée à l'**établissement de rattachement** de l'admin (helper [admin_can_edit_menu](../functions/admin_can_edit_menu.md)) ; les référentiels partagés (`menu_item_types`, `menu_catalog_products`, `menu_events`) sont en écriture super admin.
 
 | Table | Description | FK vers |
 |-------|-------------|---------|

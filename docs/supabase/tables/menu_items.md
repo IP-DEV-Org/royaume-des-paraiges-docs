@@ -68,7 +68,7 @@ Il y a donc **deux niveaux de disponibilité**, distincts et tous deux utiles :
 
 Ne pas écrire `is_featured` directement. Avec l'index seul, étoiler un produit dans une catégorie qui en a déjà un lèverait un `23505` et obligerait à désétoiler d'abord — ce n'est pas ce qu'on attend d'une étoile, on veut qu'elle se **déplace**. La fonction retire l'ancien et pose le nouveau **atomiquement**, ce que deux appels REST ne peuvent pas garantir.
 
-`SECURITY INVOKER` : la RLS de `menu_items` s'applique normalement, `admin_has_feature('menus')` compris. Aucun privilège supplémentaire n'est accordé.
+`SECURITY INVOKER` : la RLS de `menu_items` s'applique normalement, `admin_can_edit_menu` compris. Aucun privilège supplémentaire n'est accordé. Depuis la migration **109**, la fonction lève `42501 MENU_EDIT_FORBIDDEN` quand son `UPDATE` final ne touche aucune ligne : sans cela, un admin hors périmètre aurait « réussi » sans poser l'étoile.
 
 ### Trigger `trg_menu_items_scope`
 
@@ -99,13 +99,15 @@ RLS active : **Oui**
 |---|---|---|
 | `menu_items_admin_select` | SELECT | `profiles.role = 'admin'` |
 | `menu_items_public_beer_availability` | SELECT | `beer_id IS NOT NULL AND is_active` (`authenticated`) : porte la vue [beers_establishments](./beers_establishments.md) depuis son passage en `security_invoker` (migration 105). Même prédicat que la vue, pas une ligne de plus. |
-| `menu_items_feature_insert` | INSERT | `admin_has_feature('menus')` |
-| `menu_items_feature_update` | UPDATE | `admin_has_feature('menus')` |
-| `menu_items_feature_delete` | DELETE | `admin_has_feature('menus')` |
+| `menu_items_scoped_insert` | INSERT | `admin_can_edit_menu(establishment_id)` |
+| `menu_items_scoped_update` | UPDATE | `admin_can_edit_menu(establishment_id)` en USING **et** WITH CHECK |
+| `menu_items_scoped_delete` | DELETE | `admin_can_edit_menu(establishment_id)` |
 
-Même patron que la migration 070 sur les quêtes : « fonctionnalité active » est une barrière **dure en base**, pas seulement dans le middleware Next.js. Un admin dont la fonctionnalité `menus` est désactivée par un super-admin ne peut pas écrire, même par appel REST direct.
+Depuis la migration **109**, un admin n'écrit que sur la carte de **son établissement de rattachement** (`profiles.attached_establishment_id`) ; un super admin sur toutes. Le helper [admin_can_edit_menu](../functions/admin_can_edit_menu.md) enchaîne `admin_has_feature('menus')` (barrière **dure en base** de la 095, même patron que la migration 070 sur les quêtes : un admin privé de la fonctionnalité par un super admin ne peut pas écrire, même par appel REST direct) puis le rattachement. Le `WITH CHECK` de l'UPDATE interdit aussi de déplacer un item vers un autre établissement.
 
-**Un gérant n'administre pas sa carte** : l'écriture est réservée au rôle `admin`. Aucune table d'appartenances n'a donc été créée, et `profiles.attached_establishment_id` n'est pas touché.
+**Un gérant n'administre pas sa carte** : l'écriture reste réservée au rôle `admin`. Aucune table d'appartenances n'a été créée : le rattachement existant sert de périmètre, un admin n'a qu'un établissement de référence.
+
+⚠️ Un `UPDATE` ou un `DELETE` hors périmètre ne lève pas d'erreur sous RLS, il ne touche aucune ligne. `set_menu_item_featured` lève pour sa part `42501 MENU_EDIT_FORBIDDEN` (109), et le service admin relit les lignes touchées.
 
 `anon` n'a **aucun grant** sur cette table : la carte publique passe par [get_public_menu](../functions/get_public_menu.md).
 

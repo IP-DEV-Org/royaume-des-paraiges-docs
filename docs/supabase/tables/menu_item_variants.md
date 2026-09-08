@@ -46,7 +46,7 @@ Contraintes : `CHECK (price IS NULL OR price >= 0)`.
 
 ## RLS
 
-RLS active : **Oui**. Lecture admin, écriture soumise à `admin_has_feature('menus')`. Aucun grant `anon` : la carte publique passe par [get_public_menu](../functions/get_public_menu.md).
+RLS active : **Oui**. Lecture admin ; écriture soumise à [`admin_can_edit_menu`](../functions/admin_can_edit_menu.md) **par remontée à l'item** (`EXISTS` sur `menu_items.establishment_id`, policies `menu_item_variants_scoped_*`, migration **109**) : un admin ne tarife que les produits de la carte de son établissement de rattachement. Aucun grant `anon` : la carte publique passe par [get_public_menu](../functions/get_public_menu.md).
 
 ## Exemples de requêtes
 
