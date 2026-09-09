@@ -340,7 +340,7 @@ Un super admin peut désactiver des pages à un autre admin (`admin_disabled_fea
 
 Non gatés, volontairement : `legal_pages` et `establishment_groups` (aucun écran admin n'y écrit), `credit_bonus_cashback` (helper interne), les RPC de lecture. Policies nommées `<table>_feature_insert|update|delete` (+ `<table>_admin_select` quand l'ancienne policy `FOR ALL` portait la lecture).
 
-Effet PostgREST : un `UPDATE` / `DELETE` hors périmètre ne lève rien (zéro ligne touchée) ; un `INSERT` et une RPC lèvent `42501` (`FEATURE_DISABLED:` pour les RPC).
+Effet PostgREST : depuis la **115 (09/09/2026)**, les policies d'`UPDATE` gatées portent le test de fonctionnalité dans `WITH CHECK` seul (`USING` = rôle admin), donc un `UPDATE` hors fonctionnalité lève `42501` « new row violates row-level security policy » au lieu de toucher zéro ligne ; un `INSERT` et une RPC lèvent aussi `42501` (`FEATURE_DISABLED:` pour les RPC). Seul le `DELETE` reste silencieux (pas de `WITH CHECK`) : le dashboard relit la ligne supprimée (`assertWriteTouched`, `src/lib/supabase/access-errors.ts`) et son client navigateur traduit tout `42501` en message lisible. Les policies `menu_*` (109) gardent leur `USING` scopé : là, le périmètre dépend de la ligne.
 
 ## Matrice des Permissions par Rôle
 

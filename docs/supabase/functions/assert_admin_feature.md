@@ -35,4 +35,4 @@ Impossible de tester le refus en `SET ROLE authenticated` depuis une session `po
 
 ## Sécurité
 
-`REVOKE ALL FROM PUBLIC, anon`, `GRANT EXECUTE TO authenticated, service_role`.
+`REVOKE ALL FROM PUBLIC, anon`, `GRANT EXECUTE TO authenticated, service_role`. La migration **115** a aussi retiré `anon` de `admin_reset_identity_photo_cooldown` (signalé par l'advisor Supabase).
