@@ -12,7 +12,10 @@ Cette section documente toutes les fonctions PostgreSQL disponibles dans le sche
 
 | Fonction | Arguments | Retour | Volatilite | Security Definer |
 |----------|-----------|--------|------------|------------------|
-| `admin_can_edit_menu` | p_establishment_id integer | `boolean` | STABLE | Oui — helper RLS des tables `menu_*` (migration 109), cf. [`admin_can_edit_menu.md`](./admin_can_edit_menu.md) |
+| `admin_can_edit_menu` | p_establishment_id integer | `boolean` | STABLE | Oui — helper RLS des tables `menu_*` (migrations 109 + 113, groupe d'établissements), cf. [`admin_can_edit_menu.md`](./admin_can_edit_menu.md) |
+| `admin_editable_menu_establishments` | - | `SETOF integer` | STABLE | Oui — périmètre des cartes modifiables, pour le dashboard (migration 113), cf. [`admin_editable_menu_establishments.md`](./admin_editable_menu_establishments.md) |
+| `admin_has_any_feature` | VARIADIC p_feature_keys text[] | `boolean` | STABLE | Oui — feature-gating multi-clés (migration 114), cf. [`admin_has_any_feature.md`](./admin_has_any_feature.md) |
+| `assert_admin_feature` | VARIADIC p_feature_keys text[] | `void` | VOLATILE | Oui — assert_admin + fonctionnalité active (migration 114), cf. [`assert_admin_feature.md`](./assert_admin_feature.md) |
 | `assert_admin` | - | `void` | VOLATILE | Oui |
 | `assert_admin_or_establishment_for` | p_establishment_id bigint | `void` | VOLATILE | Oui |
 | `assert_self_or_staff` | p_customer_id uuid | `void` | VOLATILE | Oui |

@@ -42,5 +42,6 @@ Regroupe plusieurs établissements Royaume partageant une même réalité métie
 Les établissements d'un même groupe sont traités comme un seul pour :
 - Le calcul des visites distinctes (badges `establishments_visited`, `all_establishments_visited`)
 - Le matching Cashpad (`compute_cashpad_matching_params` est group-aware)
+- Le **périmètre d'édition des cartes** (migration 113) : un admin rattaché à un établissement du groupe modifie les cartes de tous ses membres (`admin_can_edit_menu`, `admin_editable_menu_establishments`)
 
 La colonne `group_id` dans `establishments` fait référence à cette table.

@@ -1,6 +1,6 @@
 # Function: admin_can_edit_menu
 
-Helper d'autorisation introduit par la migration **109 (08/09/2026)** : un admin ne modifie que la carte de son établissement de rattachement. Retourne `true` si l'appelant peut **écrire** sur la carte de l'établissement visé, `false` sinon. Ne concerne pas la lecture : tout admin lit toutes les cartes.
+Helper d'autorisation introduit par la migration **109 (08/09/2026)**, étendu par la **113 (09/09/2026)** : un admin ne modifie que la carte de son établissement de rattachement et celles des établissements de son **groupe** (`establishments.group_id`). Retourne `true` si l'appelant peut **écrire** sur la carte de l'établissement visé, `false` sinon. Ne concerne pas la lecture : tout admin lit toutes les cartes.
 
 ## Signature
 
@@ -25,25 +25,36 @@ SELECT public.admin_has_feature('menus')
    AND (
      public.is_super_admin()
      OR EXISTS (
-       SELECT 1 FROM public.profiles p
+       SELECT 1
+         FROM public.profiles p
+         JOIN public.establishments mine   ON mine.id   = p.attached_establishment_id
+         JOIN public.establishments target ON target.id = p_establishment_id
         WHERE p.id = auth.uid()
           AND p.role = 'admin'
-          AND p.attached_establishment_id = p_establishment_id));
+          AND (target.id = mine.id
+               OR (mine.group_id IS NOT NULL AND target.group_id = mine.group_id))));
 ```
 
-Trois cas :
+Quatre cas :
 
 | Appelant | Résultat |
 |---|---|
 | Super admin (`is_super_admin()`) | `true` pour tout établissement. |
 | Admin avec la fonctionnalité `menus`, rattaché à `p_establishment_id` | `true`. |
-| Admin rattaché ailleurs, admin sans rattachement, admin privé de la fonctionnalité `menus`, tout autre rôle | `false`. |
+| Admin avec la fonctionnalité `menus`, rattaché à un établissement du **même groupe** (`group_id` non NULL, migration 113) | `true`. |
+| Admin rattaché ailleurs ou hors groupe, admin sans rattachement, admin privé de la fonctionnalité `menus`, tout autre rôle | `false`. |
+
+Exemple en production : le groupe « Les Paraiges (Metz) » réunit Aux Paraiges, le Garage et la Grange ; un admin rattaché à Aux Paraiges modifie les trois cartes.
 
 `admin_has_feature('menus')` reste la première barrière : un super admin la passe toujours, un admin restreint par un super admin (table [admin_disabled_features](../tables/admin_disabled_features.md)) ne la passe jamais, rattaché ou non.
 
-## Pourquoi le rattachement et pas une table d'appartenances
+## Pourquoi le rattachement et le groupe, pas une table d'appartenances
 
-Chaque gérant qui administre le dashboard est un compte `admin` déjà rattaché à son établissement par `profiles.attached_establishment_id`. Ce rattachement est la seule notion de périmètre en base, et un admin n'a qu'un établissement de référence : une table d'appartenances aurait dupliqué l'information pour un cas qui n'existe pas. Décision de la migration 095 conservée.
+Chaque gérant qui administre le dashboard est un compte `admin` déjà rattaché à son établissement par `profiles.attached_establishment_id`, et [establishment_groups](../tables/establishment_groups.md) modélise déjà « une même réalité métier » (caisse commune, comptoirs adjacents). Ces deux notions suffisent à décrire le périmètre ; une table d'appartenances aurait dupliqué l'information. Décision de la migration 095 conservée, groupe ajouté par la 113.
+
+## Fonction sœur : `admin_editable_menu_establishments()`
+
+Même règle, sous forme de liste (`SETOF integer`) : les identifiants des établissements dont l'appelant peut modifier la carte. C'est elle que lit le hook `useMenuAccess` du dashboard, pour que l'interface affiche exactement le périmètre que la base applique. Cf. [admin_editable_menu_establishments](./admin_editable_menu_establishments.md).
 
 ## Utilisée par
 
@@ -71,7 +82,7 @@ Un `UPDATE` ou un `DELETE` hors périmètre ne lève **aucune erreur** : la RLS 
 
 ## Côté admin
 
-Le hook `useMenuAccess(establishmentId)` (`src/app/(dashboard)/menus/_lib/access.ts`) reproduit la règle depuis `CurrentAdminProvider` (`is_super_admin`, `attached_establishment_id`) pour ne pas proposer des gestes qui échoueraient : `/menus/[id]` passe en lecture seule (bandeau, lignes et en-têtes sans geste, barre d'actions retirée), les formulaires produit sont barrés par `MenuEditGuard`. La liste `/menus` met l'établissement de rattachement en tête et badge les autres « lecture seule ».
+Le hook `useMenuAccess(establishmentId)` (`src/app/(dashboard)/menus/_lib/access.ts`) lit le périmètre via la RPC `admin_editable_menu_establishments` (query key `menuKeys.editable()`) pour ne pas proposer des gestes qui échoueraient : `/menus/[id]` passe en lecture seule (bandeau, lignes et en-têtes sans geste, barre d'actions retirée), les formulaires produit sont barrés par `MenuEditGuard`. La liste `/menus` met l'établissement de rattachement en tête, puis ceux de son groupe, et badge les autres « lecture seule ».
 
 ## Voir aussi
 

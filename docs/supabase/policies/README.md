@@ -316,6 +316,32 @@ USING (
 
 ---
 
+## Feature-gating des écritures admin (migrations 070, 076, 095/109, 114)
+
+Un super admin peut désactiver des pages à un autre admin (`admin_disabled_features`, migration 057). Depuis la **114 (09/09/2026)**, ce n'est plus seulement le middleware Next.js qui bloque : **toutes les écritures** du dashboard sont gardées en base par `admin_has_feature('<clé>')` / `admin_has_any_feature(...)` (policies) ou `assert_admin_feature(...)` (RPC `SECURITY DEFINER`). Les **lectures** restent ouvertes à tout admin. Clés = `src/lib/features.ts` du dashboard.
+
+| Clé(s) | Tables (INSERT / UPDATE / DELETE) | RPC |
+|---|---|---|
+| `quests` | `quests`, `quest_iterations`, `quest_periods`, `quests_establishments` (070), `quest_progress`, `quest_completion_logs` (114) | `distribute_quest_reward`, `distribute_all_quest_rewards` |
+| `reports` | `email_reports`, `email_report_recipients`, `email_report_contacts` (076, 112) | - |
+| `menus` | 13 tables `menu_*` via `admin_can_edit_menu` (095, 109, 113) ; référentiels partagés = super admin | - |
+| `coupons`, `cashback-gains` | `coupons` (INSERT) | `create_manual_coupon` |
+| `templates` | `coupon_templates` | - |
+| `achievements`, `rewards` | `badge_types` | - |
+| `rewards` | `reward_tiers`, `period_reward_configs`, `available_periods` | `distribute_period_rewards_v2`, `snapshot_season`, `award_season_rank_badges`, `reset_season` |
+| `storytelling` | `level_thresholds`, `ranks` | - |
+| `beers` | `beers` (UPDATE) | - |
+| `establishments` | `establishments` (UPDATE), `establishment_consumption_types` | - |
+| `links` | `redirect_links` | - |
+| `settings` | `admin_settings` | - |
+| `reconciliation` | `cashpad_reconciliations` (UPDATE), `cashpad_employee_mappings` | - |
+| `users` | `profiles` (UPDATE par un admin ; la self-update et les triggers de rôle ne changent pas) | `admin_delete_receipt`, `admin_reset_identity_photo_cooldown` |
+| `gdpr`, `users` | `gdpr_requests` | `gdpr_anonymize_user`, `gdpr_export_user_data` (branche « admin sur autrui » ; l'utilisateur sur ses propres données passe toujours) |
+
+Non gatés, volontairement : `legal_pages` et `establishment_groups` (aucun écran admin n'y écrit), `credit_bonus_cashback` (helper interne), les RPC de lecture. Policies nommées `<table>_feature_insert|update|delete` (+ `<table>_admin_select` quand l'ancienne policy `FOR ALL` portait la lecture).
+
+Effet PostgREST : un `UPDATE` / `DELETE` hors périmètre ne lève rien (zéro ligne touchée) ; un `INSERT` et une RPC lèvent `42501` (`FEATURE_DISABLED:` pour les RPC).
+
 ## Matrice des Permissions par Rôle
 
 ### client

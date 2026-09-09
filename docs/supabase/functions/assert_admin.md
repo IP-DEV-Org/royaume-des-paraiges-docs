@@ -39,6 +39,8 @@ Aucun.
 
 ## Utilisée par (migration 040)
 
+> Depuis la migration **114 (09/09/2026)**, les RPC réservées à une page du dashboard appellent [`assert_admin_feature`](./assert_admin_feature.md) (qui enchaîne sur `assert_admin` puis teste la fonctionnalité). `assert_admin` seul reste sur les helpers internes (`credit_bonus_cashback`) et les RPC de lecture.
+
 - `credit_bonus_cashback`
 - `create_manual_coupon`
 - `distribute_quest_reward`
