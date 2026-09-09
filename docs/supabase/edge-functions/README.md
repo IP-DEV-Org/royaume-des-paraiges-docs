@@ -70,7 +70,7 @@ Envoie les **rapports e-mail automatisés** (migrations 076/077/078, étendues p
 Trois gabarits de rendu dans `templates.ts`, un par `report_type` : `activity_summary`, `leaderboard`, `new_quests` (défis de la période). Ajouter un type de rapport sans ajouter sa branche dans `renderReport()` fait échouer l'envoi avec « Type de rapport non géré ».
 
 - **Entrypoint** : `supabase/functions/send-email-reports/index.ts` (+ `templates.ts` pour le rendu)
-- **Tables cibles** : `email_reports`, `email_report_recipients`, `email_report_runs`
+- **Tables cibles** : `email_reports`, `email_report_recipients` (pivot) + `email_report_contacts` (annuaire, migration 112), `email_report_runs`
 - **Déclenchement** : cron `email-reports-dispatch` (07:00 UTC quotidien) ou appel depuis la page admin `/reports`
 
 #### Modes (corps de la requête)

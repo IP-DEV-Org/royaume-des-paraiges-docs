@@ -7,8 +7,8 @@ Trio de tables introduit par la **migration 076** (août 2026), étendu par la *
 ## Vue d'ensemble
 
 ```
-email_reports (1) ──< email_report_recipients (N)
-      │
+email_reports (1) ──< email_report_recipients (N) >── (1) email_report_contacts
+      │                         (pivot, migration 112)        (annuaire)
       └──< email_report_runs (N)
 ```
 
@@ -57,20 +57,36 @@ Ajouter un rapport = une ligne ici + un builder SQL dans [`get_email_report_payl
 - **`trg_email_report_activation`** (BEFORE UPDATE OF `is_active`) : à la transition `false → true`, positionne `last_period_sent` sur **la période que le rapport vise**, selon `period_scope` — période écoulée (`get_previous_period_identifier()`) ou période en cours (`get_period_identifier()`). **Activer un rapport ne déclenche donc jamais d'envoi dans la foulée** : le premier part au prochain changement de période. Pour ne pas attendre, utiliser « Envoyer maintenant ».
   > Sans la prise en compte de `period_scope` (migration 079), activer un rapport `current` un mercredi l'aurait fait partir au passage du cron le lendemain matin, en plein milieu de semaine.
 
-## `email_report_recipients`
+## `email_report_contacts` (annuaire, migration 112)
+
+Une adresse est définie **une fois** ici, puis cochée ou décochée rapport par rapport dans `email_report_recipients`. Avant la 112, l'adresse était saisie sur chaque rapport (trois lignes « direction@… » pour trois rapports, chacune avec son libellé et son interrupteur).
+
+| Colonne | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| `id` | `uuid` | Non | `gen_random_uuid()` | PK |
+| `email` | `text` | Non | - | CHECK de forme permissif (pas de validation TLD). Normalisée en minuscules par trigger. **UNIQUE**. |
+| `label` | `text` | Oui | - | Libellé libre (« Gérant La Chapelle »), commun à tous les rapports. |
+| `is_active` | `boolean` | Non | `true` | `false` = **suspendu** : exclu de tous les envois, les lignes du pivot restent (reprise en un geste). |
+| `created_at` / `updated_at` | `timestamptz` | Non | `now()` | Ordre d'affichage ; `updated_at` par `set_updated_at()`. |
+
+- **`trg_email_report_contact_normalize`** (BEFORE INSERT/UPDATE OF `email`) : `lower(btrim(email))`, ce qui rend `uq_email_report_contact_email` insensible à la casse.
+- Toujours des adresses **internes libres**, sans lien avec `auth.users` : le périmètre RGPD de la 076 ne change pas.
+
+## `email_report_recipients` (pivot)
+
+Depuis la migration 112, une ligne = « ce rapport part à ce contact ». Plus d'adresse, de libellé ni d'interrupteur ici.
 
 | Colonne | Type | Nullable | Default | Description |
 |---|---|---|---|---|
 | `id` | `uuid` | Non | `gen_random_uuid()` | PK |
 | `report_id` | `uuid` | Non | - | FK → `email_reports.id` (ON DELETE CASCADE) |
-| `email` | `text` | Non | - | CHECK de forme permissif (pas de validation TLD). Normalisée en minuscules par trigger. |
-| `label` | `text` | Oui | - | Libellé libre (« Gérant La Chapelle »). |
-| `is_active` | `boolean` | Non | `true` | `false` = conservé dans la liste mais exclu de l'envoi (pause sans perte du libellé). |
-| `created_at` | `timestamptz` | Non | `now()` | Ordre d'affichage et d'envoi. |
+| `contact_id` | `uuid` | Non | - | FK → `email_report_contacts.id` (ON DELETE CASCADE) : supprimer un contact le retire de tous les rapports. |
+| `created_at` | `timestamptz` | Non | `now()` | Ordre d'envoi. |
 
-- **UNIQUE (`report_id`, `email`)** : réellement insensible à la casse grâce au trigger de normalisation.
-- **`trg_email_report_recipient_normalize`** (BEFORE INSERT/UPDATE OF `email`) : `lower(btrim(email))`.
-- Index partiel `idx_email_report_recipients_report` sur (`report_id`) WHERE `is_active`.
+- **UNIQUE (`report_id`, `contact_id`)** (`uq_email_report_recipient`) : cocher deux fois est idempotent (l'admin passe par un `upsert`).
+- Index `idx_email_report_recipients_contact` sur (`contact_id`).
+- **Reprise de la 112** : une adresse distincte de l'ancienne table → un contact ; une ancienne ligne suspendue (`is_active = false`) sur un rapport → case décochée, donc supprimée. Vérifié en prod le 09/09/2026 : 5 contacts, 12 abonnements.
+- L'Edge Function lit `email_report_recipients` **joint à l'annuaire** (`email_report_contacts!inner`, filtre `is_active = true`).
 
 ## `email_report_runs`
 
@@ -105,6 +121,7 @@ Les trois tables ont RLS activée, **admin-only**.
 | Table | SELECT | INSERT / UPDATE / DELETE |
 |---|---|---|
 | `email_reports` | `profiles.role = 'admin'` | `admin_has_feature('reports')` |
+| `email_report_contacts` | `profiles.role = 'admin'` | `admin_has_feature('reports')` |
 | `email_report_recipients` | `profiles.role = 'admin'` | `admin_has_feature('reports')` |
 | `email_report_runs` | `profiles.role = 'admin'` | *(aucune policy : service_role uniquement)* |
 
@@ -112,6 +129,6 @@ La lecture reste ouverte à tout admin, même privé de la fonctionnalité : le 
 
 ## Consommateurs
 
-- **Dashboard admin `/reports`** : liste, activation, CRUD destinataires, envoi manuel, envoi de test, prévisualisation, historique. Service `src/lib/services/emailReportService.ts`.
+- **Dashboard admin `/reports`** : liste, activation, destinataires à cocher par rapport, envoi manuel, envoi de test, prévisualisation, historique ; **`/reports/recipients`** = l'annuaire (ajout, libellé, suspension, suppression). Service `src/lib/services/emailReportService.ts`.
 - **Edge Function `send-email-reports`** : lit la config, écrit les runs, met à jour `last_period_sent`.
 - **Cron `email-reports-dispatch`** (migration 078, 07:00 UTC quotidien) : déclenche l'Edge Function sans corps de requête.
