@@ -1,8 +1,8 @@
 # Function: get_report_video_variables
 
-Point d'entrée unique du **renderer vidéo** (`royaume-video-renderer`). Renvoie les variables du template HyperFrames de classement, plus la liste des avatars à télécharger.
+Point d'entrée unique du **renderer vidéo** (`royaume-video-renderer`). Renvoie les variables à plat du template HyperFrames du rapport (classement **ou** défis de la période), plus la liste des avatars à télécharger.
 
-Introduite par la migration **082 (28/08/2026)**.
+Introduite par la migration **082 (28/08/2026)**, étendue aux défis par la migration **110 (09/09/2026)**.
 
 ## Signature
 
@@ -23,9 +23,18 @@ Plutôt que de laisser le renderer consommer `get_email_report_payload` et faire
 2. L'aplatissement rang par rang est une contrainte du **moteur de rendu**, pas une forme de rapport : HyperFrames n'accepte que `string`, `number`, `color`, `boolean`, `enum`. **Il n'existe pas de type tableau**, donc le top 10 ne peut pas être une seule variable.
 3. Le renderer n'a ainsi aucune logique métier : il reçoit, il rend.
 
+## Types de rapport acceptés
+
+| `report_type` | Template du renderer | Variables | Avatars |
+|---|---|---|---|
+| `leaderboard` | `templates/leaderboard` | 34 | jusqu'à 10 à télécharger |
+| `new_quests` | `templates/quests` | 76 | aucun |
+
+Tout autre type lève `P0425 REPORT_VIDEO_UNSUPPORTED`. Le renderer choisit le dossier de template d'après `email_reports.report_type`, la forme de la réponse est la même dans les deux cas.
+
 ## Résolution de la période
 
-Identique à `get_email_report_payload` : sans `p_period_identifier`, la portée du rapport tranche (`period_scope`). Les deux rapports de classement étant en `previous`, un appel sans identifiant le lundi à 02:00 vise la semaine **close**, pas celle qui vient de s'ouvrir.
+Identique à `get_email_report_payload` : sans `p_period_identifier`, la portée du rapport tranche (`period_scope`). Les deux rapports de classement étant en `previous`, un appel sans identifiant le lundi à 02:00 vise la semaine **close**. Les deux rapports de défis sont en `current` : le même appel vise la semaine qui **s'ouvre**, comme l'e-mail d'annonce.
 
 ⚠️ **Le renderer doit laisser ce paramètre à NULL** et ne jamais calculer un numéro de semaine côté JavaScript. La convention ISO 8601 vit en SQL. C'est exactement le défaut qui a fait distribuer `distribute_period_rewards_v2` dans le vide pendant quatre mois (cf. migration 081).
 
@@ -82,3 +91,26 @@ Son rang et son XP restent exacts : le retirer fausserait le classement.
 
 - [`report_video_renders`](../tables/report_video_renders.md) - état du rendu.
 - [`build_report_leaderboard`](./get_email_report_payload.md) - source du classement, non masquée.
+
+## Défis de la période (`new_quests`, migration 110)
+
+Source : `build_report_new_quests` (migration 080). Les défis sont pris dans l'ordre **nouveaux d'abord, puis reconduits**, chaque bloc trié par `display_order` puis `name`. Six emplacements ; au-delà, les défis suivants ne sont pas dans la vidéo, `quest_count` garde le total réel.
+
+**76 variables** : `period_label`, `period_subtitle`, `quest_count`, `new_count`, puis pour N de 1 à 6 :
+
+| Variable | Source | Règle |
+|---|---|---|
+| `questN_name` | `name` | **Vide = emplacement vide**, le template masque la carte et la ligne. |
+| `questN_description` | `description` | Vide → le template affiche l'objectif formaté. |
+| `questN_type` / `questN_consumption` | `quest_type` / `consumption_type` | Valeurs d'enum telles quelles ; choisissent le pictogramme et la formulation de l'objectif. |
+| `questN_target` | `target_value` | Unité du type (`amount_spent` en centimes, affiché en PdB, jamais en euros). |
+| `questN_xp` / `questN_pdb` | `bonus_xp` / `bonus_cashback` | 0 = pas de bonus. |
+| `questN_coupon` | `coupon` | Libellé prêt à afficher : « Nom (-10 %) », « Nom (+500 PdB) », ou « Nom ». |
+| `questN_badge` | `badge` | Nom du badge ou vide. |
+| `questN_max` | `max_completions` | ≥ 1. |
+| `questN_scope` | `establishments` | Titres séparés par « , » ; **vide = toutes les tavernes** (aucun scoping, ou scoping couvrant tous les établissements). |
+| `questN_new` | bloc `new` / `ongoing` | Booléen. |
+
+Aucune donnée personnelle dans ce payload : pas d'opposition à appliquer, `avatars` est toujours `[]`.
+
+La migration 110 étend aussi `request_report_video_renders` (crons 02:00 / 04:00) et `get_report_video_alerts` (watchdog 05:30) au type `new_quests`, et pose `options.video = true` sur `weekly_new_quests` et `monthly_new_quests`. Ces deux rapports restant inactifs, rien ne se rend ni ne part tant qu'ils ne sont pas activés depuis `/reports`.
